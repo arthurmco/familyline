@@ -15,8 +15,6 @@
 #ifdef WIN32
 #include <ws2tcpip.h>
 #define EWOULDBLOCK WSAEWOULDBLOCK
-#define close closesocket
-#define socklen_t int
 typedef unsigned int in_addr_t;
 #else
 #include <arpa/inet.h>

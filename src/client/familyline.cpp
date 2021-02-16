@@ -25,6 +25,7 @@
 #include <Windows.h>
 #include <ws2tcpip.h>
 #define usleep(x) Sleep(x / 1000);
+#define sleep(x) Sleep(x * 1000);
 
 #endif
 
@@ -99,6 +100,12 @@ bool init_network()
 #endif
 
     return true;
+}
+
+void end_network() {
+    #ifdef WIN32
+    WSACleanup();
+    #endif
 }
 
 void start_networked_game(CServer& cserv, std::function<void(std::string, ServerResult)> errHandler,
@@ -762,6 +769,8 @@ int main(int argc, char const* argv[])
 
         exit(EXIT_FAILURE);
     }
+
+    end_network();
 }
 
 static int show_starting_menu(

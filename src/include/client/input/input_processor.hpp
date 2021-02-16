@@ -12,6 +12,7 @@
 
 #include <queue>
 #include <thread>
+#include <string>
 
 #include "input_actions.hpp"
 

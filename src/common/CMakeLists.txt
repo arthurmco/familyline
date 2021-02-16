@@ -55,7 +55,7 @@ if (MSVC)
     ${INPUT_FLATBUFFER_INCLUDE})
   target_link_libraries(familyline-common PUBLIC fmt::fmt glm ${ZLIB_LIBRARIES})
   target_link_libraries(familyline-common PUBLIC nlohmann_json::nlohmann_json)
-  target_link_libraries(main PRIVATE unofficial::curlpp::curlpp)
+  target_link_libraries(familyline-common PUBLIC unofficial::curlpp::curlpp)
   
 else()
   find_package(PkgConfig REQUIRED)

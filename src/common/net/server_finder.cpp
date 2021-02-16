@@ -1,9 +1,6 @@
-#include <arpa/inet.h>
+
 #include <fcntl.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <sys/utsname.h>
-#include <unistd.h>
+
 
 #include <common/logger.hpp>
 #include <common/net/server_finder.hpp>
@@ -15,6 +12,18 @@
 #ifdef __linux__
 #include <ifaddrs.h>
 #include <net/if.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <sys/utsname.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+#endif
+
+#ifdef WIN32
+#define MSG_DONTWAIT 0
+#define usleep(x) Sleep(x/1000)
+#define close(x) closesocket(x)
+#define errno  WSAGetLastError()
 #endif
 
 using namespace familyline::net;
@@ -52,12 +61,14 @@ std::string getPrimaryAddress()
     }
 #endif
 
+#ifdef __linux__ || APPLE
     struct utsname buf;
     if (uname(&buf) == 0) {
         if (strlen(buf.nodename) > 0) {
             return std::string{buf.nodename};
         }
     }
+#endif
 
     return std::string{"localhost"};
 }
@@ -145,6 +156,7 @@ ServerFinder::ServerFinder()
 ServerFinder::~ServerFinder()
 {
     if (discovering_) this->stopDiscover();
+
     close(socket_);
 }
 
@@ -309,9 +321,15 @@ void ServerFinder::startDiscover(discovery_cb callback)
             auto last_discover = time(nullptr);
             usleep(2000);
 
+
             // Use a non-blocking receive so it does not block the rest of the game.
             //
             // We need to be able to detect that the discovery has been canceled.
+            #ifdef WIN32
+            u_long iMode=1;
+            ioctlsocket(s, FIONBIO, &iMode);
+            #endif
+
             while (operating) {
                 auto discover = time(nullptr);
                 if (discover - last_discover >= seconds_between_discover) {
