@@ -28,33 +28,11 @@ typedef unsigned int in_addr_t;
 
 #include <sstream>
 #include <vector>
+#include <optional>
 
-enum ServerResult {
-    OK = 0,
+#include <common/net/game_packet_server.hpp>
+#include <common/net/net_client.hpp>
 
-    ConnectionError = 1,
-    WrongPassword,
-    LoginFailure,
-    ConnectionTimeout,
-    ServerError,
-    AlreadyLoggedOff,
-    NotAllClientsConnected,
-};
-
-/**
- * Client information, as returned by the server
- */
-struct CClientInfo {
-    uint64_t id;
-    std::string name;
-    bool ready = false;
-};
-
-struct CServerInfo {
-    std::string name;
-    size_t max_clients;
-    std::vector<CClientInfo> clients;
-};
 
 /// i do not want to include curlpp here (but maybe I should?)
 namespace curlpp
@@ -64,6 +42,22 @@ class Easy;
 
 namespace familyline::net
 {
+
+    
+/// Information about the game server port (the port that you really need to communicate with
+/// the game)
+struct GameServerInfo {
+    std::string address = "";
+    int port            = 0;
+};
+
+struct CServerInfo {
+    std::string name;
+    size_t max_clients;
+    std::vector<CClientInfo> clients;
+};
+
+
 /**
  * Client-side server communication routines
  *
@@ -79,7 +73,7 @@ public:
      *
      * Returns a certain result.
      */
-    ServerResult login(std::string address, std::string username);
+    NetResult login(std::string address, std::string username);
 
     /**
      * Logout from the server
@@ -91,42 +85,45 @@ public:
      *
      * You must be prepared for that.
      */
-    ServerResult logout();
+    NetResult logout();
 
-    ServerResult getServerInfo(CServerInfo& info);
-    ServerResult toggleReady(bool);
-    ServerResult connect();
-    
+    NetResult getServerInfo(CServerInfo& info);
+    NetResult toggleReady(bool);
+
+    /**
+     * Tells the game you are starting.
+     *
+     * Here, the call may succeed, or fail with the warning of not all
+     * clients are ready
+     */
+    NetResult connect();
+
     uint64_t getUserID() const;
     std::string getAddress() const;
-    
+
     bool isReady() const;
     bool isLogged() const;
     bool isConnecting() const;
+
+    std::optional<GamePacketServer> getGameServer();
     
 private:
     /// The address used to communicate with the HTTP part of the game protocol
     std::string http_address_;
 
-    /// The client token, used to communicate with the server
-    ///
-    /// Obtained on login.
-    std::string client_token_ = "";
-
-    /// Is the client ready? (according to the server.)
-    bool isReady_ = false;
-    
-    /// This client user ID.
-    uint64_t userID_;
+    /// The information for this client, such as ID, name, readiness and the client
+    /// token.
+    std::optional<CurrentClientInfo> cci_;
 
     /// The address and port used to communicate with the game
-    std::string address_ = "";
-    int port_ = 0;
+    std::optional<GameServerInfo> gsi_;
 
     /// Timeout for each request
     int timeout_secs_ = 10;
 
-    ServerResult checkErrors(unsigned httpcode, std::stringstream& body);
+    CServerInfo info_;
+
+    NetResult checkErrors(unsigned httpcode, std::stringstream& body);
 
     /**
      * Build a basic curlpp request.
@@ -141,7 +138,7 @@ private:
      */
     std::stringstream buildRequest(
         curlpp::Easy& req, std::string endpoint, std::string method = "GET", bool jsonbody = false,
-        std::string data = "");
+        std::string data = ""); 
 };
 
 }  // namespace familyline::net

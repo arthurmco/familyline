@@ -6,11 +6,16 @@
 
 ***/
 
+#include <config.h>
+
 #include <fmt/core.h>
 
+#include <algorithm>
 #include <chrono>
+#include <iterator>
 
 #include "client/graphical/gui/gui_container_component.hpp"
+#include "common/net/network_client.hpp"
 #define GLM_FORCE_RADIANS
 
 #ifndef _WIN32
@@ -57,8 +62,10 @@
 #include <common/logger.hpp>
 #include <common/logic/input_recorder.hpp>
 #include <common/logic/input_reproducer.hpp>
+#include <common/net/game_packet_server.hpp>
 #include <common/net/server.hpp>
 #include <common/net/server_finder.hpp>
+#include <concepts>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -73,6 +80,8 @@ using namespace familyline::graphics;
 using namespace familyline::graphics::gui;
 using namespace familyline::input;
 using namespace familyline::net;
+
+// TODO: create a shader manager *and* a texture manager
 
 #ifdef WIN32
 #include <io.h>
@@ -102,91 +111,289 @@ bool init_network()
     return true;
 }
 
-void end_network() {
-    #ifdef WIN32
+void end_network()
+{
+#ifdef WIN32
     WSACleanup();
-    #endif
+#endif
 }
 
-void start_networked_game(CServer& cserv, std::function<void(std::string, ServerResult)> errHandler,
-    ConfigData& cdata)
+/**
+ * Wait for a list futures promises, then return
+ *
+ * Return true when every item on the promise resolves
+ *
+ * The FnValidator is a function that you should call, and the cancel is a variable
+ * you should set when you want to cancel the operation
+ */
+template <typename Result, typename Expect, std::invocable<Expect&> FnValidator>
+bool waitFutures(
+    std::vector<std::pair<Result, std::future<Expect>>>& promises, std::vector<Result>& result,
+    FnValidator&& validator, auto& cancel)
 {
+    bool all_loaded = false;
+    while (!all_loaded) {
+        
+        if (cancel)
+            break;
+        
+        for (auto& [id, promise] : promises) {
+            if (!promise.valid()) continue;
 
+//            printf("waiting on %zu\n", id);
+            
+            if (auto fstatus = promise.wait_for(std::chrono::milliseconds(100));
+                fstatus == std::future_status::ready) {                
+                printf("%zu is ready\n", id);
+                
+                auto res = promise.get();
+                if (!res.has_value()) {
+                    printf("\tan error occurred while handling message for %lu\n", id);
+                    continue;
+                }
+
+                if (validator(res)) {
+                    result.push_back(id);
+                }
+            }
+
+            if (result.size() == promises.size()) {
+                all_loaded = true;
+            }
+        }
+    }
+
+    return all_loaded;
+}
+
+int start_networked_game(
+    GamePacketServer& gps, std::vector<NetworkClient>& clients, ConfigData& cdata)
+{
+    printf("Loading the game...\n");
+    printf("\tWaiting for the other clients to load\n");
+    assert(clients.size() > 0);
+
+    bool all_loaded = false;
+    bool all_ready  = false;
+    std::atomic<bool> quitting   = false;
+
+    std::thread netthread([&]() {
+        int iters = 0;
+        while (!quitting) {
+            iters++;
+
+            gps.update();
+            std::for_each(clients.begin(), clients.end(), [&](NetworkClient& c) { c.update(); });
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
+            // 1 min timeout
+            if (iters == 1000 * 30) {
+                puts("TIMED OUT");
+                break;
+            }
+        }
+    });
+
+    std::vector<std::pair<uint64_t, std::future<tl::expected<bool, NetResult>>>> loading_promises;
+    std::transform(
+        clients.begin(), clients.end(), std::back_inserter(loading_promises),
+        [](NetworkClient& c) { return std::make_pair(c.id(), c.waitLoading()); });
+    std::vector<uint64_t> loading_clients;
+
+    gps.sendLoadingMessage(0);
+    /// TODO: load the map, assets, game class...
+
+    /// TODO: fix an issue where two messages can come on the same TCP packet.
+    /// This might happen here.
+    /// Fix here and on Rust server, but only when receiving.
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+
+    gps.sendLoadingMessage(100);
+    printf("\t our game loaded! \n");
+
+    all_loaded = waitFutures(
+        loading_promises, loading_clients, [&](auto& res) { return res.value_or(false) == true; }, quitting);
+
+    if (!all_loaded) {
+        quitting = true;
+        printf("\tanother client failed to load, exiting\n");
+        netthread.join();
+        return 1;
+    }
+
+    printf("\tnotifying other clients we are about to start, and waiting them\n");
+    std::vector<std::pair<uint64_t, std::future<tl::expected<bool, NetResult>>>> start_promises;
+    std::transform(
+        clients.begin(), clients.end(), std::back_inserter(start_promises),
+        [](NetworkClient& c) { return std::make_pair(c.id(), c.waitReadyToStart()); });
+    std::vector<uint64_t> start_clients;
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+
+    gps.sendStartMessage();
+
+    all_ready = waitFutures(
+        start_promises, start_clients, [&](auto& res) { return res.value_or(false) == true; }, quitting);
+
+    if (!all_ready) {
+        quitting = true;
+        printf("\tanother client failed to start the game, exiting\n");
+        netthread.join();
+        return 1;
+    }
+
+    printf("\tstarting the game\n");
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+
+    quitting = true;
+    netthread.join();
+
+    return 0;
+}
+
+void start_networked_game_room(
+    CServer& cserv, std::function<void(std::string, NetResult)> errHandler, ConfigData& cdata)
+{
     CServerInfo si = {};
-    auto ret = cserv.getServerInfo(si);
-    if (ret != ServerResult::OK) {
+    auto ret       = cserv.getServerInfo(si);
+    if (ret != NetResult::OK) {
         errHandler("Failure to get server info", ret);
         return;
     }
 
+    std::optional<GamePacketServer> gps;
+
     bool exit = false;
     while (!exit) {
-
         fmt::print("\033[2J\n\033[1;1H");
         fmt::print("\033[1m{}\033[0m\t ({})\n", si.name, cserv.getAddress());
         fmt::print("\t\033[32m{}\033[0m/{} clients\n", si.clients.size(), si.max_clients);
         fmt::print("\n---------------------------------------------------\n");
-        
-        for (auto& cli: si.clients) {
+
+        for (auto& cli : si.clients) {
             std::string readycolor = cli.ready ? "\033[34m" : "";
-            fmt::print(" {} {}{}\033[0m\n",                       
-                       cli.id == cserv.getUserID() ? "=>" : "  ",
-                       readycolor,
-                       cli.name);
+            fmt::print(
+                " {} {}{}\033[0m\n", cli.id == cserv.getUserID() ? "=>" : "  ", readycolor,
+                cli.name);
         }
 
         fmt::print("\033[{}B", si.max_clients - si.clients.size() + 1);
         fmt::print("\033[3B [(u)pdate, (q)uit, (c)onnect, (t)oggle ready]> ");
+
+        fflush(stdin);
         auto v = getchar();
 
         switch (v) {
-        case 'q':
-        case 'Q':
-            exit = true;
-            break;
-        case 'u':
-        case 'U':
-            ret = cserv.getServerInfo(si);
-            if (ret != ServerResult::OK) {
-                errHandler("Failure to get server info", ret);
-                return;
-            }            
-            break;
-        case 't':
-        case 'T':
-            ret = cserv.toggleReady(!cserv.isReady());
-            if (ret != ServerResult::OK) {
-                errHandler("Failure to set ready", ret);
-                return;
-            }
+            case 'q':
+            case 'Q': exit = true; break;
+            case 'u':
+            case 'U':
+                ret = cserv.getServerInfo(si);
+                if (ret != NetResult::OK) {
+                    errHandler("Failure to get server info", ret);
+                    return;
+                }
+                break;
+            case 't':
+            case 'T':
+                ret = cserv.toggleReady(!cserv.isReady());
+                if (ret != NetResult::OK) {
+                    errHandler("Failure to set ready", ret);
+                    return;
+                }
 
-            ret = cserv.getServerInfo(si);
-            if (ret != ServerResult::OK) {
-                errHandler("Failure to get server info", ret);
-                return;
-            }    
+                ret = cserv.getServerInfo(si);
+                if (ret != NetResult::OK) {
+                    errHandler("Failure to get server info", ret);
+                    return;
+                }
 
-            if (std::all_of(si.clients.begin(), si.clients.end(),
-                            [](auto& v) { return v.ready == true; })
-                && si.clients.size() >= 2) {
+                if (std::all_of(
+                        si.clients.begin(), si.clients.end(),
+                        [](auto& v) { return v.ready == true; }) &&
+                    si.clients.size() >= 2) {
+                    cserv.connect();
+                }
 
-                cserv.connect();
-                
-            }
-            
-            break;            
-        case 'c':
-        case 'C':
-            fmt::print("not implemented yet!\n");
-            fflush(stdout);
-            sleep(3);
-            break;
+                break;
+            case 'c':
+            case 'C':
+                ret = cserv.getServerInfo(si);
+                if (ret != NetResult::OK) {
+                    errHandler("Failure to get server info", ret);
+                    return;
+                }
+
+                ret = cserv.connect();
+                if (ret != NetResult::OK) {
+                    errHandler("Failure to get the game server info", ret);
+
+                } else {
+                    printf("connecting to the game server\n");
+                    gps = cserv.getGameServer();
+                    if (!gps) {
+                        printf("error: connection failed");
+                        continue;
+                    }
+
+                    if (!gps->connect()) {
+                        printf("error: failed to connect to server");
+                        continue;
+                    }
+
+                    std::vector<NetworkClient> clients;
+                    auto clientfut = gps->waitForClientConnection();
+                    int cycles = 0;
+                    for (;;) {
+                        gps->update();
+
+                        auto fstatus = clientfut.wait_for(std::chrono::milliseconds(1));
+                        if (fstatus == std::future_status::ready) {
+                            clients = clientfut.get()
+                                          .map_error([](auto e) {
+                                              switch (e) {
+                                                  case NetResult::ConnectionTimeout:
+                                                      printf(
+                                                          "Timed out while waiting other players. "
+                                                          "Please try again.\n");
+                                                      break;
+
+                                                  case NetResult::UnexpectedDisconnect:
+                                                      printf(
+                                                          "The client disconnected, but it should "
+                                                          "not disconnect!");
+                                                      break;
+
+                                                  case NetResult::ServerError:
+                                                      printf("Unknown server error.\n");
+                                                      break;
+
+                                                  default: printf("Unexpected error\n");
+                                              }
+
+                                              return e;
+                                          })
+                                          .value_or(std::vector<NetworkClient>{});
+                            break;
+                        }
+                    }
+
+                    if (clients.size() <= 0) {
+                        printf("No clients.\n");
+                        std::this_thread::sleep_for(std::chrono::seconds(2));
+                        continue;
+                    }
+
+                    start_networked_game(*gps, clients, cdata);
+                    exit = true;
+                }
+
+                fflush(stdout);
+                sleep(3);
+                break;
         }
     }
-
-
 }
-
 
 /**
  * Enable console color on Windows 8 or newer
@@ -432,12 +639,14 @@ Game* start_game(
         throw std::runtime_error{"Could not create the human player"};
     }
 
-    std::unique_ptr<InputRecorder> ir;
-
+    // You can't reproduce a record while recording.
+    //
+    // It will work, will not overwrite any file (because the filename is decided by the
+    // recording date), but it is redundant.
     if (confdata.enableInputRecording && !irepr) {
         log->write("game", LogType::Info, "This game inputs will be recorded");
 
-        ir = std::make_unique<InputRecorder>(*pm.get());
+        auto ir = std::make_unique<InputRecorder>(*pm.get());
 
         auto rawtime        = time(NULL);
         auto ftime          = localtime(&rawtime);
@@ -451,14 +660,9 @@ Game* start_game(
 
         if (!ir->createFile(recordpath.string(), of)) {
             log->write("game", LogType::Error, "\tinput record file could not be created");
-            ir = std::unique_ptr<InputRecorder>(nullptr);
+        } else {
+            g->initRecorder(std::move(ir));
         }
-
-        // You can't reproduce a record while recording.
-        //
-        // It will work, will not overwrite any file (because the filename is decided by the
-        // recording date), but it is redundant.
-        g->initRecorder(std::move(ir));
     }
 
     if (irepr) {
@@ -490,65 +694,63 @@ void run_game_loop(LoopRunner& lr, int& framecount)
     }
 }
 
-
 void start_networked_game_cmdline(std::string addr, ConfigData& cdata)
 {
-    auto treat_errors = [&](std::string msg, ServerResult ret){
+    auto treat_errors = [&](std::string msg, NetResult ret) {
         switch (ret) {
-        case ConnectionError:
-            fmt::print(
-                "{}: {}\n", msg,
-                fmt::format("Could not connect to address {}: {}", addr));
-            break;
-        case WrongPassword:
-            fmt::print("{}: {}", fmt::format("Server {} has a password", addr));
-            break;
-        case LoginFailure:
-            fmt::print(
-                "{}: {}\n", msg,
-                fmt::format(
-                    "Could not log in to {}\nThe server was found, but we could not "
-                    "login there.",
-                    addr));
-            break;
-        case ConnectionTimeout:
-            fmt::print(
-                "{}: {}\n", msg,
-                fmt::format(
-                    "Timed out while connecting to {}\nThe server probably does not "
-                    "exist, or there is a firewall issue.",
-                    addr));
-            break;
-        case ServerError:
-            fmt::print(
-                "{}: {}\n", msg,
-                fmt::format(
-                    "Error while connecting to {}. The server sent incorrect data to "
-                    "the client.",
-                    addr));
-            break;
-        case NotAllClientsConnected:
-            fmt::print(
-                "{}: {}\n", msg,
-                fmt::format(
-                    "Error where connecting to {}: Not all clients were connected, but the client and the server disagree on that.",
-                    addr));
-            break;
-        default:
-            fmt::print(
-                "{}: {}\n", msg,
-                fmt::format("Could not connect to address {}: unknown error {}", addr, ret));
+            case NetResult::ConnectionError:
+                fmt::print("{}: {}\n", msg, fmt::format("Could not connect to address {}", addr));
+                break;
+            case NetResult::WrongPassword:
+                fmt::print("{}: {}", fmt::format("Server {} has a password", addr));
+                break;
+            case NetResult::LoginFailure:
+                fmt::print(
+                    "{}: {}\n", msg,
+                    fmt::format(
+                        "Could not log in to {}\nThe server was found, but we could not "
+                        "login there.",
+                        addr));
+                break;
+            case NetResult::ConnectionTimeout:
+                fmt::print(
+                    "{}: {}\n", msg,
+                    fmt::format(
+                        "Timed out while connecting to {}\nThe server probably does not "
+                        "exist, or there is a firewall issue.",
+                        addr));
+                break;
+            case NetResult::ServerError:
+                fmt::print(
+                    "{}: {}\n", msg,
+                    fmt::format(
+                        "Error while connecting to {}. The server sent incorrect data to "
+                        "the client.",
+                        addr));
+                break;
+            case NetResult::NotAllClientsConnected:
+                fmt::print(
+                    "{}: {}\n", msg,
+                    fmt::format(
+                        "Error where connecting to {}: The server reported that not all clients "
+                        "were connected",
+                        addr));
+                break;
+            default:
+                fmt::print(
+                    "{}: {}\n", msg,
+                    fmt::format("Could not connect to address {}: unknown error {}", addr, ret));
         }
     };
 
     CServer cserv{};
     auto ret = cserv.login(addr, cdata.player.username);
-    if (ret != ServerResult::OK) {
+    if (ret != NetResult::OK) {
         treat_errors("Connection error", ret);
         return;
     }
 
-    start_networked_game(cserv, treat_errors, cdata);
+    start_networked_game_room(cserv, treat_errors, cdata);
 
     cserv.logout();
 }
@@ -926,68 +1128,70 @@ static int show_starting_menu(
 
             b->setText("Connecting...");
 
-            auto errHandler = [&](std::string msg, ServerResult ret) {
+            auto errHandler = [&](std::string msg, NetResult ret) {
                 switch (ret) {
-                case ConnectionError:
-                    win->showMessageBox(
-                        msg, SysMessageBoxFlags::Warning,
-                        fmt::format("Could not connect to address {}: Connection error", addr));
-                    break;
-                case WrongPassword:
-                    win->showMessageBox(
-                        msg, SysMessageBoxFlags::Warning,
-                        fmt::format("Server {} has a password", addr));
-                    break;
-                case LoginFailure:
-                    win->showMessageBox(
-                        msg, SysMessageBoxFlags::Warning,
-                        fmt::format(
-                            "Could not log in to {}\nThe server was found, but we could not "
-                            "login there.",
-                            addr));
-                    break;
-                case ConnectionTimeout:
-                    win->showMessageBox(
-                        msg, SysMessageBoxFlags::Warning,
-                        fmt::format(
-                            "Timed out while connecting to {}\nThe server probably does not "
-                            "exist, or there is a firewall issue.",
-                            addr));
-                    break;
-                case ServerError:
-                    win->showMessageBox(
-                        msg, SysMessageBoxFlags::Warning,
-                        fmt::format(
-                            "Error while connecting to {}. The server sent incorrect data to "
-                            "the client.",
-                            addr));
-                    break;
-                case NotAllClientsConnected:
-                    win->showMessageBox(
-                        msg, SysMessageBoxFlags::Warning,
-                        fmt::format(
-                            "Error while connecting to {}. The server reported that not all clients were connected, but the client and the server disagree on that.",
-                            addr));
-                    break;
-                default:
-                    win->showMessageBox(
-                        msg, SysMessageBoxFlags::Warning,
-                        fmt::format(
-                            "Could not connect to address {}: unknown error {}", addr, ret));
-                    break;
-                }  
+                    case NetResult::ConnectionError:
+                        win->showMessageBox(
+                            msg, SysMessageBoxFlags::Warning,
+                            fmt::format("Could not connect to address {}: Connection error", addr));
+                        break;
+                    case NetResult::WrongPassword:
+                        win->showMessageBox(
+                            msg, SysMessageBoxFlags::Warning,
+                            fmt::format("Server {} has a password", addr));
+                        break;
+                    case NetResult::LoginFailure:
+                        win->showMessageBox(
+                            msg, SysMessageBoxFlags::Warning,
+                            fmt::format(
+                                "Could not log in to {}\nThe server was found, but we could not "
+                                "login there.",
+                                addr));
+                        break;
+                    case NetResult::ConnectionTimeout:
+                        win->showMessageBox(
+                            msg, SysMessageBoxFlags::Warning,
+                            fmt::format(
+                                "Timed out while connecting to {}\nThe server probably does not "
+                                "exist, or there is a firewall issue.",
+                                addr));
+                        break;
+                    case NetResult::ServerError:
+                        win->showMessageBox(
+                            msg, SysMessageBoxFlags::Warning,
+                            fmt::format(
+                                "Error while connecting to {}. The server sent incorrect data to "
+                                "the client.",
+                                addr));
+                        break;
+                    case NetResult::NotAllClientsConnected:
+                        win->showMessageBox(
+                            msg, SysMessageBoxFlags::Warning,
+                            fmt::format(
+                                "Error while connecting to {}. The server reported that not all "
+                                "clients were connected, but the client and the server disagree on "
+                                "that.",
+                                addr));
+                        break;
+                    default:
+                        win->showMessageBox(
+                            msg, SysMessageBoxFlags::Warning,
+                            fmt::format(
+                                "Could not connect to address {}: unknown error {}", addr, ret));
+                        break;
+                }
             };
-            
+
             auto ret = cserv.login(addr, confdata.player.username);
-            if (ret != ServerResult::OK) {
+            if (ret != NetResult::OK) {
                 ((Textbox*)gmplayer->get("txtaddr"))->setText("");
                 b->setText("Connect");
                 errHandler("Connection error", ret);
                 return;
             }
 
-            start_networked_game(cserv, errHandler, confdata);
-            
+            start_networked_game_room(cserv, errHandler, confdata);
+
             cserv.logout();
             b->setText("Connect...");
         });

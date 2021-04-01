@@ -4,6 +4,8 @@
 #include <common/logger.hpp>
 #include <string>
 
+#include <config.h>
+
 using namespace familyline::graphics;
 
 std::string AssetItem::getItemOr(const char* key, const char* defaultval)

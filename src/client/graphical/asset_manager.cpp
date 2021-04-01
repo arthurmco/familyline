@@ -1,4 +1,3 @@
-#include <client/graphical/../config.h>
 #include <fmt/format.h>
 
 #include <algorithm>

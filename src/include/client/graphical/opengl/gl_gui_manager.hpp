@@ -43,7 +43,11 @@ public:
         {}
         
 
-    virtual ~GLGUIManager() {};
+    virtual ~GLGUIManager() {
+        if (sGUI_) {
+            delete sGUI_;
+        }        
+    };
 };
 
 }  // namespace familyline::graphics::gui

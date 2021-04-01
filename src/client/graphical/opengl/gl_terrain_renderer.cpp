@@ -8,6 +8,9 @@
 #include <common/logger.hpp>
 #include <iterator>
 
+#include <config.h>
+
+
 using namespace familyline::graphics;
 using namespace familyline::logic;
 

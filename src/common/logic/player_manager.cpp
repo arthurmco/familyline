@@ -68,23 +68,42 @@ void PlayerManager::iterate(PlayerCallback c)
 
 /**
  * Push an action
+ *
+ * We can push an action to be ran in a certain tick
  */
-void PlayerManager::pushAction(unsigned int id, PlayerInputType type)
+void PlayerManager::pushAction(
+    unsigned int id, PlayerInputType type, std::optional<unsigned int> tick)
 {
     auto duration   = std::chrono::system_clock::now().time_since_epoch();
     uint64_t micros = std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
 
-    auto& log = LoggerService::getLogger();
+    auto& log    = LoggerService::getLogger();
+    auto runtick = tick ? *tick : tick_ + tick_delta_;
+
     log->write(
-        "player-manager", LogType::Debug, "push action of player %08x on tick %d", id, _tick);
+        "player-manager", LogType::Info, "push action of player %08x on tick %d to be run on %d",
+        id, tick_, runtick);
+
+    if (tick) {
+        assert(*tick > tick_);
+    }
 
     PlayerInputAction a;
     a.playercode = id;
-    a.tick       = _tick;
+    a.tick       = runtick;
     a.timestamp  = micros;
     a.type       = type;
 
-    actions_.push(a);
+    actions_.push_back(a);
+    
+    std::sort(actions_.begin(), actions_.end(), [&](const PlayerInputAction& a, const PlayerInputAction& b){
+        // return a < b
+
+        if (a.tick != b.tick)
+            return a.tick < b.tick;
+
+        return a.timestamp < b.timestamp;
+    });
 }
 
 auto getValidSelections(const std::vector<std::weak_ptr<GameObject>>& selections)
@@ -121,6 +140,19 @@ int PlayerManager::addListener(PlayerListenerHandler h)
     player_input_listeners_.push_back(phi);
     return phi.id;
 }
+
+/**
+ * Removes the player input action event listener
+ */
+void PlayerManager::removeListener(int id)
+{
+    auto it = std::erase_if(player_input_listeners_,
+                            [id](const PlayerHandlerInfo& i)
+                                {return i.id == id; }
+        );
+    
+}
+
 
 /// This will allow us to use std::visit with multiple variants at once, a thing
 /// that should be part of C++20.
@@ -413,16 +445,19 @@ std::multimap<int, std::string> PlayerManager::getPlayerNames()
  */
 void PlayerManager::run(GameContext& gctx)
 {
-    _tick = gctx.tick;
+    tick_ = gctx.tick;
 
     while (!actions_.empty()) {
         PlayerInputAction& a = actions_.front();
+        if (a.tick > tick_)
+            break;
+        
         this->processAction(a, *gctx.om);
 
         for (auto h : player_input_listeners_) {
             h.handler(a);
         }
 
-        actions_.pop();
+        actions_.pop_front();
     }
 }

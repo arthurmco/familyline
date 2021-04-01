@@ -1,0 +1,63 @@
+include "input.fbs";
+
+namespace familyline;
+
+table StartRequest {
+    client_id: ulong;
+    token: string;    
+}
+
+table StartResponse {
+    client_ack: ulong;
+    all_clients_ack: bool;
+}
+
+table LoadingRequest  {
+    percent: ushort;
+}
+
+table LoadingResponse  {
+    percent: ushort;
+}
+
+table GameStartRequest  {
+    reserved: uint;
+}
+
+table GameStartResponse  {
+    reserved: uint;
+}
+
+table InputRequest {
+    client_from:  ulong;
+    input_msg: InputType;
+}
+
+table InputResponse {
+    client_from: ulong;
+    client_ack: bool;
+}
+
+union Message {
+    sreq: StartRequest,
+    sres: StartResponse,
+    lreq: LoadingRequest,
+    lres: LoadingResponse,
+    greq: GameStartRequest,
+    gres: GameStartResponse,
+    ireq: InputRequest,
+    ires: InputResponse
+}
+
+table NetPacket {
+    tick: ulong;
+    source_client: ulong;
+    dest_client: ulong;
+    timestamp: ulong;
+    id: ulong;
+
+    message: Message (required);
+}
+
+
+root_type NetPacket;

@@ -4,6 +4,8 @@
 
 include("${CMAKE_SOURCE_DIR}/src/common/generated.cmake")
 get_target_property(INPUT_FLATBUFFER_INCLUDE input-flatbuffer GENERATED_INCLUDES_DIR)
+get_target_property(INPUT_FLATBUFFER_INCLUDE input-ser-flatbuffer GENERATED_INCLUDES_DIR)
+get_target_property(INPUT_FLATBUFFER_INCLUDE network-flatbuffer GENERATED_INCLUDES_DIR)
 
 add_library(
   familyline-common
@@ -36,14 +38,16 @@ add_library(
   "objects/WatchTower.cpp"
   "net/server_finder.cpp"
   "net/server.cpp"
+  "net/game_packet_server.cpp"
+  "net/network_client.cpp"
   )
 
-add_dependencies(familyline-common input-flatbuffer)
+add_dependencies(familyline-common input-flatbuffer input-ser-flatbuffer network-flatbuffer)
  
 find_package(fmt CONFIG REQUIRED)
 find_package(ZLIB REQUIRED)
-find_package(ZLIB REQUIRED)
 find_package(nlohmann_json REQUIRED)
+find_package(tl-expected CONFIG REQUIRED)
 
 if (MSVC)
 	
@@ -56,6 +60,7 @@ if (MSVC)
   target_link_libraries(familyline-common PUBLIC fmt::fmt glm ${ZLIB_LIBRARIES})
   target_link_libraries(familyline-common PUBLIC nlohmann_json::nlohmann_json)
   target_link_libraries(familyline-common PUBLIC unofficial::curlpp::curlpp)
+  target_link_libraries(familyline-common PUBLIC tl::expected)
   
 else()
   find_package(PkgConfig REQUIRED)
@@ -63,12 +68,13 @@ else()
   pkg_search_module(CURLPP REQUIRED curlpp)
   target_link_libraries(familyline-common PUBLIC fmt::fmt ${GLM_LIBRARIES} ${ZLIB_LIBRARIES})
   target_link_libraries(familyline-common PUBLIC nlohmann_json::nlohmann_json)
+  target_link_libraries(familyline-common PUBLIC tl::expected)
   target_link_libraries(familyline-common PUBLIC ${CURLPP_LDFLAGS})
   target_include_directories(familyline-common PUBLIC ${GLM_INCLUDE_DIRS}
     ${ZLIB_INCLUDE_DIR} ${INPUT_FLATBUFFER_INCLUDE} ${CURLPP_INCLUDE_DIRS})
 endif(MSVC)
 
-if (SET_COVERAGE)
+if (FLINE_SET_COVERAGE)
   target_compile_options(familyline-common PUBLIC "-fprofile-arcs")
   target_compile_options(familyline-common PUBLIC "-ftest-coverage")
   target_compile_options(familyline-common PUBLIC "-O0")
@@ -76,6 +82,11 @@ if (SET_COVERAGE)
   target_link_libraries(familyline-common PUBLIC "-ftest-coverage")
   target_link_libraries(familyline-common PUBLIC "gcov")
   target_link_libraries(familyline-common PUBLIC "--coverage")
+endif()
+
+if (FLINE_DO_CHECK_ASAN)
+  target_compile_options(familyline-common PUBLIC "-fsanitize=address")
+  target_link_libraries(familyline-common PUBLIC "-fsanitize=address")
 endif()
 
 

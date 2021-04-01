@@ -42,6 +42,14 @@ private:
 
     /// Current-used directional light
     LightHandle* directionalLight_ = nullptr;
+
+    /// Vertices scheduled to be removed
+    /// Since we cannot remove them in the removeVertex(), because the
+    /// removed one itself calls this method, we schedule them to be removed
+    /// by the next call to render()
+    std::vector<GLVertexHandle*> to_be_removed_handles_;
+
+    void removeScheduledVertices();
     
     ShaderProgram* _sForward = nullptr;
     ShaderProgram* _sLines   = nullptr;

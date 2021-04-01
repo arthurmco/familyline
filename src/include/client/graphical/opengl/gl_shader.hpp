@@ -57,7 +57,12 @@ public:
     virtual void setUniform(std::string_view name, float val);
 
     virtual void use();
-    
+
+    virtual ~GLShaderProgram() {
+        for (auto& [_, s] : _files) {
+            delete s;
+        }
+    }
 };
 }  // namespace familyline::graphics
 

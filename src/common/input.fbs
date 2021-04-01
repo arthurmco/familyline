@@ -1,0 +1,51 @@
+namespace familyline;
+
+table CommandInputA {
+      args: [ulong];
+}
+
+table CommandInput {
+      command: string(required);
+      args: CommandInputA;
+}
+
+
+table SelectActionObjects {
+      values: [ulong] (required) ;
+}
+
+
+table SelectAction {
+      objects: SelectActionObjects (required);
+}
+
+
+table ObjectMove {
+      x_pos: uint;
+      y_pos: uint;
+}
+
+table CameraMove {
+      x_delta: double;
+      y_delta: double;
+      zoom_delta: double;
+}
+
+table CameraRotate {
+      radians: double;
+}
+
+table CreateEntity {
+      type: string;
+      x_pos: uint;
+      y_pos: uint;
+}
+
+union InputType {
+      cmd: CommandInput,
+      sel: SelectAction,
+      obj_move: ObjectMove,
+      cam_move: CameraMove,
+      cam_rotate: CameraRotate,
+      create: CreateEntity
+}

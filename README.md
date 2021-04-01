@@ -27,21 +27,35 @@ Expect it to have a lot of good humor!
 
 The game runs in Linux and Windows. Other platforms need to be tested.
 
+Before you do anything, you need to pull the dependent repositories.
+The only dependency that needs this is the Google Test framework.
+
+Type those commands in the appropriate shell
+
+```
+git submodule init
+git submodule update
+```
+
+and then you are good to go!
+
 ### Penguins
 
 On Linux, you will need the softwares below:
 
- - *GLM:* for vector mathematics
- - *GLEW:* for dealing with OpenGL extensions
- - *SDL:* for dealing with our window. Version 2.0 is required.
- - *devIL:* for loading our textures.
- - *cairo:* for drawing the interfaces
- - *libyaml:* For parsing the `assets.yaml` file, aka the asset list.
+ - *GLM*: for vector mathematics
+ - *GLEW*: for dealing with OpenGL extensions
+ - *SDL*: for dealing with our window. Version 2.0 is required.
+ - *devIL*: for loading our textures.
+ - *cairo*: for drawing the interfaces
+ - *libyaml*: For parsing the `assets.yaml` file, aka the asset list.
  - *nlohmann-json*: For parsing and creating JSON from some network
    messages.
- - *curlpp:* For network communication (pre-game server-client
+ - *tl-expected*: We are now starting to use the tl-expected header
+   files to make error handling nicer
+ - *curlpp*: For network communication (pre-game server-client
    communication is HTTP-based)
- - *libflatbuffers:* For serializing the input to a file, and reading
+ - *libflatbuffers*: For serializing the input to a file, and reading
    from it
 
 Please build in a separate directory from the source. For exemple,
@@ -51,8 +65,8 @@ when you clone the repository, you can create a directory named
 ```
 mkdir build
 cd build
-cmake -DCMAKE_BUILD_TYPE=Release -DUSE_RELATIVE_PATH=off
--DDO_TESTS=off ..
+cmake -DCMAKE_BUILD_TYPE=Release -DFLINE_USE_RELATIVE_PATH=off
+-DFLINE_DO_TESTS=off ..
 make familyline
 ```
 
@@ -73,7 +87,7 @@ You will need to have vcpkg integrated with Visual Studio.
 Execute the following command:
 
 `> vcpkg install glm glew sdl2 devil cairo libyaml fmt flatbuffers
-nlohmann-json curlpp`
+nlohmann-json curlpp tl-expected`
 
 Go make a coffee and buy needed things in the market. Order some
 food. This will take some time.
@@ -130,7 +144,7 @@ To generate a package, simply run these three commands:
 
 ```
 mkdir build && cd build
-cmake -DCMAKE_BUILD_TYPE=Release -DUSE_RELATIVE_PATH=off -DDO_TESTS=off ..
+cmake -DCMAKE_BUILD_TYPE=Release -DFLINE_USE_RELATIVE_PATH=off -DFLINE_DO_TESTS=off ..
 make package
 ```
 
@@ -149,6 +163,7 @@ Aside from issues, there are things I would like to do very soon
 
  - Increase test coverage
  - Add Windows test coverage
+ - Port and test on FreeBSD
  
 ## License
 

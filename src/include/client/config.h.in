@@ -1,6 +1,0 @@
-#cmakedefine SHADERS_DIR @SHADERS_DIR@
-#cmakedefine ICONS_DIR @ICONS_DIR@
-#cmakedefine MATERIALS_DIR @MATERIALS_DIR@
-#cmakedefine MODELS_DIR @MODELS_DIR@
-#cmakedefine TEXTURES_DIR @TEXTURES_DIR@
-#cmakedefine ASSET_FILE_DIR @ASSET_FILE_DIR@

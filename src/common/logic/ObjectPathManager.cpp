@@ -66,6 +66,10 @@ void ObjectPathManager::UpdatePaths(unsigned ms_frame)
      * Nuke them in iteration end */
     std::vector<int> compl_pathids;
 
+    if (!_terr)
+        return;
+
+    assert(_terr);
     for (auto it = _pathrefs.begin(); it != _pathrefs.end(); it++) {
         if (it->path_point == it->path->back()) {
             /* Path completed. Remove the iterator */

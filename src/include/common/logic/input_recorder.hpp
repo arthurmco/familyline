@@ -40,14 +40,6 @@ namespace familyline::logic {
      *
      */    
     class InputRecorder {
-    private:
-        FILE* f_ = nullptr;
-        PlayerManager& pm_;
-        std::vector<RecordPlayerInfo> pinfo_;
-
-        std::string path_ = "";
-        int inputcount_ = 0;
-
     public:
         InputRecorder(PlayerManager& pm);
 
@@ -72,6 +64,15 @@ namespace familyline::logic {
         InputRecorder(InputRecorder&) = delete;
         InputRecorder(const InputRecorder&) = delete;
 
+    private:
+        FILE* f_ = nullptr;
+        PlayerManager& pm_;
+        std::vector<RecordPlayerInfo> pinfo_;
+
+        std::string path_ = "";
+        int inputcount_ = 0;
+
+        int pm_handle_ = 0;
     };
 
 

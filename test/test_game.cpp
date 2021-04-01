@@ -76,4 +76,3 @@ TEST(GameTest, TestIfGameStartsAndRuns)
     InputService::setInputManager(std::unique_ptr<InputManager>());
     GFXService::setDevice(std::unique_ptr<TestDevice>());
 }
-

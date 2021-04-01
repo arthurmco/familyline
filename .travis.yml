@@ -34,6 +34,7 @@ addons:
       - flatbuffers-compiler-dev
       - flatbuffers-compiler
       - libcurlpp-dev
+      - libexpected-dev
       
 env:
   - CXX=g++-10 
@@ -42,6 +43,6 @@ env:
 script:
   - ${CXX} --version
   - mkdir build && cd build
-  - cmake -DDO_TESTS=on -DDO_CHECK_ASAN=off -DSET_COVERAGE=off -DUSE_RELATIVE_PATH=on -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DFLATC_TARGET="" -DFLATBUFFERS_FLATC_EXECUTABLE="/usr/bin/flatc" ..
+  - cmake -DFLINE_BUILD_TESTS=on -DFLINE_DO_CHECK_ASAN=off -DFLINE_SET_COVERAGE=off -DFLINE_USE_RELATIVE_PATH=on -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DFLATC_TARGET="" -DFLATBUFFERS_FLATC_EXECUTABLE="/usr/bin/flatc" ..
   - make familyline-tests
   - ./familyline-tests

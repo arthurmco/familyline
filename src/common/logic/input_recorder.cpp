@@ -1,4 +1,5 @@
 #include <flatbuffers/flatbuffers.h>
+#include <input_generated.h>
 #include <input_serialize_generated.h>
 #include <zlib.h>
 
@@ -16,7 +17,7 @@ using namespace familyline::logic;
 
 InputRecorder::InputRecorder(PlayerManager& pm) : pm_(pm)
 {
-    pm_.addListener(std::bind(&InputRecorder::addAction, this, std::placeholders::_1));
+    pm_handle_ = pm_.addListener(std::bind(&InputRecorder::addAction, this, std::placeholders::_1));
 
     auto pmap = pm_.getPlayerNames();
     for (auto [id, name] : pmap) {
@@ -110,7 +111,7 @@ bool InputRecorder::createFile(std::string_view path, ObjectFactory* const of)
 
 /// This will allow us to use std::visit with multiple variants at once, a thing
 /// that should be part of C++20.
-/// There are three locations that I use this. I hope this gets suggested for C++23
+/// There are FOUR locations that I use this. I hope this gets suggested for C++23
 /// or C++26
 template <class... Ts>
 struct overload : Ts... {
@@ -144,7 +145,7 @@ bool InputRecorder::addAction(PlayerInputAction pia)
                     }
 
                     auto pserialize = builder.CreateVector(params);
-                    auto cargs      = CreateCommandInputArgs(builder, pserialize);
+                    auto cargs      = CreateCommandInputA(builder, pserialize);
 
                     auto cval = CreateCommandInput(builder, cstr, cargs);
 
@@ -240,20 +241,22 @@ void InputRecorder::commit()
     uint32_t inputcount  = inputcount_;
     uint32_t checksum    = 0;
 
-    fwrite((void*)endmagic, 1, 4, f_);
-    fwrite(&inputcount, sizeof(inputcount), 1, f_);
+    if (f_) {
+        fwrite((void*)endmagic, 1, 4, f_);
+        fwrite(&inputcount, sizeof(inputcount), 1, f_);
 
-    auto checksumpos = ftell(f_);
-    fwrite(&checksum, sizeof(checksum), 1, f_);
-    fflush(f_);
+        auto checksumpos = ftell(f_);
+        fwrite(&checksum, sizeof(checksum), 1, f_);
+        fflush(f_);
 
-    checksum = calculateChecksum(path_);
-    LoggerService::getLogger()->write(
-        "input-recorder", LogType::Info, "writing checksum %08x to the file %s", checksum,
-        path_.c_str());
+        checksum = calculateChecksum(path_);
+        LoggerService::getLogger()->write(
+            "input-recorder", LogType::Info, "writing checksum %08x to the file %s", checksum,
+            path_.c_str());
 
-    fseek(f_, checksumpos, SEEK_SET);
-    fwrite(&checksum, sizeof(checksum), 1, f_);
+        fseek(f_, checksumpos, SEEK_SET);
+        fwrite(&checksum, sizeof(checksum), 1, f_);
+    }
 }
 
 InputRecorder::~InputRecorder()
@@ -262,4 +265,6 @@ InputRecorder::~InputRecorder()
         this->commit();
         fclose(f_);
     }
+
+    pm_.removeListener(pm_handle_);
 }

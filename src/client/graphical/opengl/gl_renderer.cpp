@@ -54,6 +54,8 @@ VertexHandle* GLRenderer::createVertex(VertexData& vd, VertexInfo& vi)
 
 void GLRenderer::render(Camera* c)
 {
+    this->removeScheduledVertices();
+    
     // glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // we're not using the stencil buffer now
 
@@ -304,14 +306,29 @@ void GLRenderer::removeVertex(VertexHandle* vh)
 
     if (gvh->vboTex >= 0) glDeleteBuffers(1, (GLuint*)&gvh->vboTex);
 
+    to_be_removed_handles_.push_back(gvh);
+}
+
+void GLRenderer::removeScheduledVertices()
+{
+    if (to_be_removed_handles_.empty())
+        return;
+    
     auto r = std::remove_if(
         _vhandle_list.begin(), _vhandle_list.end(),
-        [gvh](const std::unique_ptr<GLVertexHandle>& handle) {
-            return (handle.get() == nullptr) || (handle->vao == gvh->vao);
+        [this](const std::unique_ptr<GLVertexHandle>& handle) {
+            auto it = std::find(this->to_be_removed_handles_.begin(),
+                                this->to_be_removed_handles_.end(),
+                                handle.get());
+            
+            return it != this->to_be_removed_handles_.end();
         });
 
     _vhandle_list.erase(r, _vhandle_list.end());
+
+    to_be_removed_handles_.clear();
 }
+
 
 LightHandle* GLRenderer::createLight(Light& light)
 {

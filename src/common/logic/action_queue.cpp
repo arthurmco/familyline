@@ -1,3 +1,5 @@
+#include <fmt/format.h>
+
 #include <algorithm>
 #include <common/logger.hpp>
 #include <common/logic/action_queue.hpp>
@@ -44,9 +46,8 @@ overload(Ts...) -> overload<Ts...>;
 
 void ActionQueue::pushEvent(const EntityEvent& ev)
 {
-    char begin[128];
-    sprintf(
-        begin, "timestamp=%llu, source=%s", ev.timestamp,
+    std::string begin = fmt::format(
+        "timestamp={}, source={}", ev.timestamp,
         ev.emitter ? ev.emitter->getName().c_str() : "(null emitter)");
 
     auto& log = LoggerService::getLogger();
@@ -55,22 +56,22 @@ void ActionQueue::pushEvent(const EntityEvent& ev)
             [&](const EventCreated& e) {
                 log->write(
                     "action-queue", LogType::Info, "event added: EventCreated (%s, objectID=%llu)",
-                    begin, e.objectID);
+                    begin.c_str(), e.objectID);
             },
             [&](const EventBuilding& e) {
                 log->write(
                     "action-queue", LogType::Info, "event added: EventBuilding (%s, objectID=%llu)",
-                    begin, e.objectID);
+                    begin.c_str(), e.objectID);
             },
             [&](const EventBuilt& e) {
                 log->write(
                     "action-queue", LogType::Info, "event added: EventBuilt (%s, objectID=%llu)",
-                    begin, e.objectID);
+                    begin.c_str(), e.objectID);
             },
             [&](const EventReady& e) {
                 log->write(
                     "action-queue", LogType::Info, "event added: EventReady (%s, objectID=%llu)",
-                    begin, e.objectID);
+                    begin.c_str(), e.objectID);
             },
             [&](const EventAttacking& e) {
                 log->write(
@@ -78,39 +79,39 @@ void ActionQueue::pushEvent(const EntityEvent& ev)
                     "event added: EventAttacking (%s, "
                     "attacker(id=%llu, xpos=%d, ypos=%d), defender(id=%llu, xpos=%d, ypos=%d),"
                     "damageDealt=%.2f)",
-                    begin, e.attackerID, e.atkXPos, e.atkYPos, e.defenderID, e.defXPos, e.defYPos,
-                    e.damageDealt);
+                    begin.c_str(), e.attackerID, e.atkXPos, e.atkYPos, e.defenderID, e.defXPos,
+                    e.defYPos, e.damageDealt);
             },
             [&](const EventWorking& e) {
                 log->write(
                     "action-queue", LogType::Info,
                     "event added: EventWorking (%s, objectID=%llu,"
                     "atkXPos=%d, atkYPos=%d",
-                    begin, e.objectID, e.atkXPos, e.atkYPos);
+                    begin.c_str(), e.objectID, e.atkXPos, e.atkYPos);
             },
             [&](const EventGarrisoned& e) {
                 log->write(
                     "action-queue", LogType::Info,
                     "event added: EventGarrisoned (%s, objectID=%llu,"
                     "parentID=%d, entering=%s",
-                    begin, e.objectID, e.parentID, e.entering ? "true" : "false");
+                    begin.c_str(), e.objectID, e.parentID, e.entering ? "true" : "false");
             },
             [&](const EventDying& e) {
                 log->write(
                     "action-queue", LogType::Info,
                     "event added: EventDying (%s, objectID=%llu,"
                     "atkXPos=%d, atkYPos=%d",
-                    begin, e.objectID, e.atkXPos, e.atkYPos);
+                    begin.c_str(), e.objectID, e.atkXPos, e.atkYPos);
             },
             [&](const EventDead& e) {
                 log->write(
                     "action-queue", LogType::Info, "event added: EventDead (%s, objectID=%llu)",
-                    begin, e.objectID);
+                    begin.c_str(), e.objectID);
             },
             [&](const EventDestroyed& e) {
                 log->write(
                     "action-queue", LogType::Info,
-                    "event added: EventDestroyed (%s, objectID=%llu)", begin, e.objectID);
+                    "event added: EventDestroyed (%s, objectID=%llu)", begin.c_str(), e.objectID);
             }},
         ev.type);
 

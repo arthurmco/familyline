@@ -69,7 +69,7 @@ namespace familyline::graphics
             std::string title, SysMessageBoxFlags flags, std::string content);
 
         
-        virtual ~GLWindow() {}
+        virtual ~GLWindow() { delete winShader; }
     };
 
 
