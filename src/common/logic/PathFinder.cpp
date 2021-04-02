@@ -17,6 +17,13 @@ PathFinder::PathFinder(ObjectManager* om) : _om(om)
 
 PathFinder::~PathFinder()
 {
+    if (node_list) {
+        for (PathNode* n : node_list->nodes) {
+            delete n;
+        }
+        delete node_list;
+    }
+    
     delete[] _pathing_slots;
     // ObjectEventEmitter::removeListenr(&this->oel);
 }
@@ -132,8 +139,8 @@ PathNode* NodeList::getNode(glm::vec2 pos)
 
     if (pi == nodes.end()) {
         return (this->isObstacle(pos) || !this->canObjectFit(pos, 3, 3))
-                   ? nullptr
-                   : new PathNode(this->pf, pos);
+            ? nullptr
+            : new PathNode(this->pf, pos);
     } else {
         return *pi;
     }
@@ -158,7 +165,10 @@ std::vector<PathNode*> PathNode::getNeighbors()
             if (neipos.x >= 0 && neipos.y >= 0 && neipos.x < this->pf->_mapWidth &&
                 neipos.y < this->pf->_mapHeight) {
                 auto n = this->pf->node_list->getNode(neipos);
-                if (n) r.push_back(n);
+                if (n) {
+                    r.push_back(n);
+                }
+                    
             }
         }
     }
@@ -242,7 +252,8 @@ std::vector<glm::vec2> PathFinder::FindPath(
             }
         }
 
-        if (frontier.size() > (size_t)(std::abs(end.x - start.x) * std::abs(end.x - start.y) * 10)) {
+        if (frontier.size() >
+            (size_t)(std::abs(end.x - start.x) * std::abs(end.x - start.y) * 10)) {
             log->write(
                 "pathfinder", LogType::Error,
                 "would get caught in an infinite loop!\n"
@@ -300,9 +311,21 @@ std::vector<glm::vec2> PathFinder::CreatePath(const GameObject& o, glm::vec2 des
         }
     }
 
-    if (this->node_list) delete this->node_list;
+    if (this->node_list) {
+        for (PathNode* n : this->node_list->nodes) {
+            delete n;
+        }
+        delete this->node_list;
+    }
 
     this->node_list = new NodeList(this, this->_pathing_slots, unsigned(this->_mapWidth));
-    return this->FindPath(
+    auto r = this->FindPath(
         from, glm::vec2(int(destination.x), int(destination.y)), o.getSize().x, o.getSize().y);
+
+    
+    for (PathNode* n : this->node_list->nodes) {
+        delete n;
+    }
+    
+    return r;
 }

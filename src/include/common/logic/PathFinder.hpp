@@ -7,13 +7,13 @@
 #pragma once
 
 #include <array>
+#include <common/logic/terrain.hpp>
 #include <glm/glm.hpp>
 #include <list>
 #include <queue>
 #include <unordered_map>
 #include <vector>
 
-#include <common/logic/terrain.hpp>
 #include "game_event.hpp"
 #include "object_components.hpp"
 #include "object_manager.hpp"
