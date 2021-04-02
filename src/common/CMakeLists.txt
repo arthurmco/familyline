@@ -49,7 +49,7 @@ find_package(ZLIB REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(tl-expected CONFIG REQUIRED)
 
-if (MSVC)
+if (WIN32)
 	
   include(${CMAKE_TOOLCHAIN_FILE})
   find_package(GLM CONFIG REQUIRED)
@@ -72,7 +72,7 @@ else()
   target_link_libraries(familyline-common PUBLIC ${CURLPP_LDFLAGS})
   target_include_directories(familyline-common PUBLIC ${GLM_INCLUDE_DIRS}
     ${ZLIB_INCLUDE_DIR} ${INPUT_FLATBUFFER_INCLUDE} ${CURLPP_INCLUDE_DIRS})
-endif(MSVC)
+endif(WIN32)
 
 if (FLINE_SET_COVERAGE)
   target_compile_options(familyline-common PUBLIC "-fprofile-arcs")
@@ -85,8 +85,12 @@ if (FLINE_SET_COVERAGE)
 endif()
 
 if (FLINE_DO_CHECK_ASAN)
-  target_compile_options(familyline-common PUBLIC "-fsanitize=address")
-  target_link_libraries(familyline-common PUBLIC "-fsanitize=address")
+  if (WIN32)
+    message("No support for windows + address sanitizer yet")
+  else() 
+    target_compile_options(familyline-common PUBLIC "-fsanitize=address")
+    target_link_libraries(familyline-common PUBLIC "-fsanitize=address")
+  endif()
 endif()
 
 

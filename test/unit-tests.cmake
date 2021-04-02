@@ -83,8 +83,12 @@ if (FLINE_BUILD_TESTS)
     gtest gtest_main)
 
   if (FLINE_DO_CHECK_ASAN)
-    target_compile_options(familyline-tests PUBLIC "-fsanitize=address")
-    target_link_libraries( familyline-tests "-ggdb -fsanitize=address -static-libstdc++ -static-libasan -lrt")
+    if (WIN32)
+      message("No support for windows + address sanitizer yet")
+    else()
+      target_compile_options(familyline-tests PUBLIC "-fsanitize=address")
+      target_link_libraries( familyline-tests "-ggdb -fsanitize=address -static-libstdc++ -static-libasan -lrt")
+    endif()
   endif(FLINE_DO_CHECK_ASAN)
 
 

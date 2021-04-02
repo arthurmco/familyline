@@ -37,7 +37,6 @@ class ServerFinder
 {
 public:
     ServerFinder();
-    ~ServerFinder();
 
     /// Start the server discovery process.
     ///
@@ -49,6 +48,9 @@ public:
 
     /// Stop the server discovery process
     void stopDiscover();
+
+    
+    ~ServerFinder();
 
 private:
     bool discovering_ = false;

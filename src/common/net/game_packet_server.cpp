@@ -1,8 +1,13 @@
-#include <bits/stdint-uintn.h>
+
 #include <config.h>
 #include <flatbuffers/flatbuffers.h>
 #include <fmt/format.h>
+
+#ifdef __linux__
+#include <bits/stdint-uintn.h>
 #include <sys/socket.h>
+#endif
+
 
 #include <algorithm>
 #include <chrono>
@@ -17,6 +22,10 @@
 #include <variant>
 
 #include "network_generated.h"
+
+#ifdef WIN32
+#define errno  WSAGetLastError()
+#endif
 
 using namespace familyline::net;
 

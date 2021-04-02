@@ -89,6 +89,10 @@ target_compile_features(familyline-client PRIVATE cxx_std_20)
 
 
 if (FLINE_DO_CHECK_ASAN)
-  target_compile_options(familyline-client PUBLIC "-fsanitize=address")
-  target_link_libraries( familyline-client PUBLIC "-fsanitize=address")
+  if (WIN32)
+    message("No support for windows + address sanitizer yet")
+  else() 
+    target_compile_options(familyline-client PUBLIC "-fsanitize=address")
+    target_link_libraries( familyline-client PUBLIC "-fsanitize=address")
+  endif()
 endif()

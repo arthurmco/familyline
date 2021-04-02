@@ -10,6 +10,10 @@
 #include <string_view>
 #include <thread>
 
+#ifdef WIN32
+#define errno  WSAGetLastError()
+#endif
+
 using namespace familyline::net;
 using json = nlohmann::json;
 
@@ -52,7 +56,7 @@ std::string getPrimaryAddress()
     }
 #endif
 
-#ifdef HAS_UTSNAME
+#if defined(HAS_UTSNAME) && !defined(WIN32)
     struct utsname buf;
     if (uname(&buf) == 0) {
         if (strlen(buf.nodename) > 0) {

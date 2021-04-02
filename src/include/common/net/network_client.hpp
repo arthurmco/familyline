@@ -13,7 +13,6 @@
  * Copyright (C) 2021 Arthur Mendes
  */
 
-#include <common/logic/player_actions.hpp>
 #include <common/net/net_common.hpp>
 #include <common/net/net_client.hpp>
 #include <cstdint>
@@ -25,7 +24,6 @@
 
 namespace familyline::net
 {
-struct Packet;
 
 /**
  * The network client

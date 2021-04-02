@@ -10,11 +10,11 @@
 #include <common/logic/lifecycle_manager.hpp>
 #include <common/logic/player.hpp>
 #include <common/logic/player_actions.hpp>
-#include <functional>
-#include <memory>
 #include <deque>
-#include <vector>
+#include <functional>
 #include <map>
+#include <memory>
+#include <vector>
 
 namespace familyline::logic
 {
@@ -54,16 +54,15 @@ private:
      */
     std::deque<PlayerInputAction> actions_;
 
-    
     std::vector<PlayerHandlerInfo> player_input_listeners_;
 
     /// The tick we are executing right now
     size_t tick_ = 0;
 
-    /// The difference between the tick we are executing and the tick that the message pushed in this
-    /// tick will be run by default
+    /// The difference between the tick we are executing and the tick that the message pushed in
+    /// this tick will be run by default
     size_t tick_delta_ = 2;
-    
+
     void processAction(const PlayerInputAction& a, ObjectManager& om);
 
     std::optional<Player*> getPlayerFromID(int id);
@@ -111,7 +110,8 @@ public:
      *
      * We can push an action to be ran in a certain tick
      */
-    void pushAction(unsigned int id, PlayerInputType type, std::optional<unsigned int> tick = std::nullopt);
+    void pushAction(
+        unsigned int id, PlayerInputType type, std::optional<unsigned int> tick = std::nullopt);
 
     /**
      * Adds a listener to the player input action event listeners
@@ -154,7 +154,6 @@ public:
      */
     size_t tick() const { return tick_; }
 
-
     /**
      * Get the current tick delta
      */
@@ -163,7 +162,6 @@ public:
     /**
      * TODO: maybe add support to changing the tick delta value
      */
-    
 };
 
 }  // namespace familyline::logic

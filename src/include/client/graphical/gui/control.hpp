@@ -90,16 +90,6 @@ struct ControlAppearance {
  */
 class Control
 {
-private:
-    unsigned long long id_;
-    std::function<void(Control*, size_t, size_t)> resize_cb_;
-
-protected:
-    std::optional<ContainerComponent> cc_ = std::nullopt;
-    ControlAppearance appearance_;
-
-    int x_;
-    int y_;
 
 public:
     Control();
@@ -176,6 +166,18 @@ public:
     
     // see https://stackoverflow.com/a/461224
     virtual ~Control() {}
+
+private:
+    unsigned long long id_;
+    std::function<void(Control*, size_t, size_t)> resize_cb_;
+
+protected:
+    std::optional<ContainerComponent> cc_ = std::nullopt;
+    ControlAppearance appearance_;
+
+    int x_;
+    int y_;
+
 };
 
 }  // namespace familyline::graphics::gui

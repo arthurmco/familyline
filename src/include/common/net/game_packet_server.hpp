@@ -29,63 +29,14 @@
 #include <vector>
 #include <mutex>
 
+#ifdef WIN32
+#define send(s, buf, n, opt) send(s, (const char*)buf, n, opt)
+#define recv(s, buf, n, opt) recv(s, (char*)buf, n, opt)
+#endif
+
 
 namespace familyline::net
 {
-/**
- * Has the same information of the NetPacket structure from flatbuffers, but in a more C++-sy way
- *
- * We needed to use this structure also because it was much easier to copy this structure. since the
- * NetPacket has no copy constructors, and moving it did not seem to work also
- */
-struct Packet {
-    uint64_t tick;
-    uint64_t source_client;
-    uint64_t dest_client;
-    std::chrono::seconds timestamp;
-    uint64_t id;
-
-    struct NStartRequest {
-        uint64_t client_id;
-        std::string token;
-    };
-
-    struct NStartResponse {
-        uint64_t client_ack;
-        bool all_clients_ack;
-    };
-
-    struct NLoadingRequest {
-        unsigned short percent;
-    };
-
-    struct NLoadingResponse {
-        unsigned short percent;
-    };
-
-    struct NGameStartRequest {
-        unsigned int val;
-    };
-
-    struct NGameStartResponse {
-        unsigned int val;
-    };
-
-    struct InputRequest {
-        uint64_t client_from;
-        logic::PlayerInputType input;
-    };
-
-    struct InputResponse {
-        uint64_t client_from;
-        bool client_ack;
-    };
-
-    std::variant<
-        NStartRequest, NStartResponse, NLoadingRequest, NLoadingResponse, NGameStartRequest,
-        NGameStartResponse, std::monostate>
-        message;
-};
 
 class GamePacketServer
 {

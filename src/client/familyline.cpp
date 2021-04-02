@@ -24,14 +24,12 @@
 #endif
 
 #ifdef _WIN32
-
 #define _WINSOCKAPI_
 #define _WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <ws2tcpip.h>
 #define usleep(x) Sleep(x / 1000);
 #define sleep(x) Sleep(x * 1000);
-
 #endif
 
 #include <fmt/format.h>

@@ -23,7 +23,7 @@ option(FLINE_NET_SUPPORT "Enable networking support" ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set( CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake" )
-
+set(FLATBUFFERS_FLATC_EXECUTABLE "D:\\vcpkg\\installed\\x86-windows\\tools\\flatbuffers\\flatc.exe")
 #
 # Set the default directory location
 set(SHADERS_DIR "\"${CMAKE_INSTALL_PREFIX}/share/familyline/shaders/\"")

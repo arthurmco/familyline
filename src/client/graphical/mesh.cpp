@@ -3,6 +3,7 @@
 #include <client/graphical/mesh.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <numeric>
+#include <iterator>
 
 using namespace familyline::graphics;
 
