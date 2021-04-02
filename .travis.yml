@@ -1,7 +1,5 @@
 language: cpp
 dist: focal
-compiler:
-  - gcc
 
 os:
   - linux
@@ -10,9 +8,11 @@ addons:
   apt:
     sources:
       - ubuntu-toolchain-r-test
+      - llvm-toolchain-focal-11
 
     packages:
       - g++-10
+      - clang-11
       - libglm-dev
       - libglew2.1
       - libglew-dev
@@ -36,9 +36,6 @@ addons:
       - libcurlpp-dev
       - libexpected-dev
       
-env:
-  - CXX=g++-10 
-      
 # We attempt to fix an issue with the flatc finder command
 script:
   - ${CXX} --version
@@ -46,3 +43,22 @@ script:
   - cmake -DFLINE_BUILD_TESTS=on -DFLINE_DO_CHECK_ASAN=off -DFLINE_SET_COVERAGE=off -DFLINE_USE_RELATIVE_PATH=on -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DFLATC_TARGET="" -DFLATBUFFERS_FLATC_EXECUTABLE="/usr/bin/flatc" ..
   - make familyline-tests
   - ./familyline-tests
+
+
+
+jobs:
+  include:
+    - name: gcc
+      os: linux
+      compiler: gcc
+      env:
+        - CXX=g++-10
+    - name: clang
+      os: linux
+      compiler: clang
+      env:
+        - CXX=clang++-11
+        - CC=clang-11
+
+cache:
+  apt: true
