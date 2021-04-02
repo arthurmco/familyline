@@ -90,6 +90,8 @@ if (FLINE_DO_CHECK_ASAN)
   else() 
     target_compile_options(familyline-common PUBLIC "-fsanitize=address")
     target_link_libraries(familyline-common PUBLIC "-fsanitize=address")
+    target_compile_options(familyline-common PUBLIC "-fno-omit-frame-pointer")
+    target_link_libraries(familyline-common PUBLIC "-fno-omit-frame-pointer")
   endif()
 endif()
 

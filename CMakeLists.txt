@@ -172,6 +172,19 @@ else()
 
 endif(MSVC)
 
+
+if (FLINE_DO_CHECK_ASAN)
+  if (WIN32)
+    message("No support for windows + address sanitizer yet")
+  else() 
+    target_compile_options(familyline PUBLIC "-fsanitize=address")
+    target_link_libraries(familyline "-fsanitize=address")
+    target_compile_options(familyline PUBLIC "-fno-omit-frame-pointer")
+    target_link_libraries(familyline "-fno-omit-frame-pointer")
+  endif()
+endif()
+
+
 if (WIN32)
 	
   get_filename_component(CMAKE_TOOLCHAIN_DIR "${CMAKE_TOOLCHAIN_FILE}" DIRECTORY)
