@@ -242,7 +242,7 @@ std::vector<glm::vec2> PathFinder::FindPath(
             }
         }
 
-        if (frontier.size() > (size_t)(abs(end.x - start.x) * abs(end.x - start.y) * 10)) {
+        if (frontier.size() > (size_t)(std::abs(end.x - start.x) * std::abs(end.x - start.y) * 10)) {
             log->write(
                 "pathfinder", LogType::Error,
                 "would get caught in an infinite loop!\n"
