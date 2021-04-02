@@ -22,7 +22,7 @@ struct ParamInfo {
     FILE* log_device = stderr;
 
     std::string renderer = "opengl";
-    std::vector<familyline::graphics::Device*> devices;
+    std::vector<std::unique_ptr<familyline::graphics::Device>> devices;
     
     std::optional<std::string> mapFile;
     std::optional<std::string> inputFile;

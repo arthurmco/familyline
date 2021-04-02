@@ -7,7 +7,6 @@
 ***/
 
 #include <config.h>
-
 #include <fmt/core.h>
 
 #include <algorithm>
@@ -131,19 +130,17 @@ bool waitFutures(
 {
     bool all_loaded = false;
     while (!all_loaded) {
-        
-        if (cancel)
-            break;
-        
+        if (cancel) break;
+
         for (auto& [id, promise] : promises) {
             if (!promise.valid()) continue;
 
-//            printf("waiting on %zu\n", id);
-            
+            //            printf("waiting on %zu\n", id);
+
             if (auto fstatus = promise.wait_for(std::chrono::milliseconds(100));
-                fstatus == std::future_status::ready) {                
+                fstatus == std::future_status::ready) {
                 printf("%zu is ready\n", id);
-                
+
                 auto res = promise.get();
                 if (!res.has_value()) {
                     printf("\tan error occurred while handling message for %lu\n", id);
@@ -171,9 +168,9 @@ int start_networked_game(
     printf("\tWaiting for the other clients to load\n");
     assert(clients.size() > 0);
 
-    bool all_loaded = false;
-    bool all_ready  = false;
-    std::atomic<bool> quitting   = false;
+    bool all_loaded            = false;
+    bool all_ready             = false;
+    std::atomic<bool> quitting = false;
 
     std::thread netthread([&]() {
         int iters = 0;
@@ -210,7 +207,8 @@ int start_networked_game(
     printf("\t our game loaded! \n");
 
     all_loaded = waitFutures(
-        loading_promises, loading_clients, [&](auto& res) { return res.value_or(false) == true; }, quitting);
+        loading_promises, loading_clients, [&](auto& res) { return res.value_or(false) == true; },
+        quitting);
 
     if (!all_loaded) {
         quitting = true;
@@ -231,7 +229,8 @@ int start_networked_game(
     gps.sendStartMessage();
 
     all_ready = waitFutures(
-        start_promises, start_clients, [&](auto& res) { return res.value_or(false) == true; }, quitting);
+        start_promises, start_clients, [&](auto& res) { return res.value_or(false) == true; },
+        quitting);
 
     if (!all_ready) {
         quitting = true;
@@ -341,7 +340,7 @@ void start_networked_game_room(
 
                     std::vector<NetworkClient> clients;
                     auto clientfut = gps->waitForClientConnection();
-                    int cycles = 0;
+                    int cycles     = 0;
                     for (;;) {
                         gps->update();
 
@@ -818,35 +817,42 @@ int main(int argc, char const* argv[])
     Game* g               = nullptr;
 
     try {
-        auto devs          = pi.devices;
-        Device* defaultdev = nullptr;
+        {
+            auto devs = std::move(pi.devices);
+            std::unique_ptr<Device> defaultdev;
 
-        if (devs.size() == 0) {
-            log->write("main", LogType::Fatal, "no video devices found!");
-            return 1;
+            if (devs.size() == 0) {
+                log->write("main", LogType::Fatal, "no video devices found!");
+                return 1;
+            }
+
+            for (auto& d : devs) {
+                log->write(
+                    "main", LogType::Info, "driver found: %s %s", d->getCode().data(),
+                    (d->isDefault() ? "(default)" : ""));
+
+                if (d->isDefault()) {
+                    defaultdev = std::move(d);
+                }
+            }
+
+            if (!defaultdev) {
+                log->write(
+                    "main", LogType::Warning,
+                    "no default device available, choosing the first one");
+                defaultdev = std::move(devs[0]);
+            }
+            GFXService::setDevice(std::move(defaultdev));
         }
 
-        for (auto d : devs) {
-            log->write(
-                "main", LogType::Info, "driver found: %s %s", d->getCode().data(),
-                (d->isDefault() ? "(default)" : ""));
-
-            if (d->isDefault()) defaultdev = d;
-        }
-
-        if (!defaultdev) {
-            log->write(
-                "main", LogType::Warning, "no default device available, choosing the first one");
-            defaultdev = devs[0];
-        }
-        GFXService::setDevice(std::unique_ptr<Device>(defaultdev));
-
-        InputProcessor* ipr = new InputProcessor;
-        InputService::setInputManager(std::make_unique<InputManager>(*ipr));
+        auto& device = GFXService::getDevice();
+        
+        auto ipr = std::make_unique<InputProcessor>();
+        InputService::setInputManager(std::make_unique<InputManager>(*ipr.get()));
         auto& ima = InputService::getInputManager();
 
         //        InputManager::GetInstance()->Initialize();
-        win = GFXService::getDevice()->createWindow(pi.width, pi.height);
+        win = device->createWindow(pi.width, pi.height);
 
         win->show();
         // enable_gl_debug();
@@ -855,8 +861,8 @@ int main(int argc, char const* argv[])
             throw net_exception("Could not initialize network");
         }
 
-        log->write("", LogType::Info, "Device name: %s", defaultdev->getName().data());
-        log->write("", LogType::Info, "Device vendor: %s ", defaultdev->getVendor().data());
+        log->write("", LogType::Info, "Device name: %s", device->getName().data());
+        log->write("", LogType::Info, "Device vendor: %s ", device->getVendor().data());
 
         int fwidth, fheight;
         int gwidth, gheight;

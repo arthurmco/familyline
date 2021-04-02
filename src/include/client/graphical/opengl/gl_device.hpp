@@ -10,6 +10,7 @@
 ***/
 
 #include <client/graphical/opengl/gl_headers.hpp>
+#include <memory>
 
 #ifdef RENDERER_OPENGL
 #include <client/graphical/device.hpp>
@@ -49,7 +50,7 @@ public:
     /**
      * Get a list of devices in the machine
      */
-    static std::vector<Device*> getDeviceList();
+    static std::vector<std::unique_ptr<Device>> getDeviceList();
 
     virtual ~GLDevice() {}
 };

@@ -69,7 +69,7 @@ std::vector<std::string> get_available_renderers() {
     return rs;
 }
 
-std::vector<familyline::graphics::Device*> get_device_list(std::string_view renderer) {
+std::vector<std::unique_ptr<familyline::graphics::Device>> get_device_list(std::string_view renderer) {
     auto rs = get_available_renderers();
 
     if (rs.empty()) {
@@ -94,7 +94,7 @@ std::vector<familyline::graphics::Device*> get_device_list(std::string_view rend
     }
 #endif
 
-    return std::vector<familyline::graphics::Device*>{};
+    return std::vector<std::unique_ptr<familyline::graphics::Device>>{};
 }
 
 ParamInfo parse_params(const std::vector<std::string>& params)

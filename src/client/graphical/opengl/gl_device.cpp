@@ -15,10 +15,10 @@ using namespace familyline::graphics;
 /**
  * Get a list of devices in the machine
  */
-std::vector<Device*> GLDevice::getDeviceList()
+std::vector<std::unique_ptr<Device>> GLDevice::getDeviceList()
 {
     // TODO: make this a static method of each device?
-    std::vector<Device*> devs;
+    std::vector<std::unique_ptr<Device>> devs;
 
     auto r = SDL_Init(SDL_INIT_EVERYTHING);
     if (r != 0) {
@@ -29,7 +29,7 @@ std::vector<Device*> GLDevice::getDeviceList()
         auto code       = SDL_GetVideoDriver(i);
         auto is_default = !strcmp(code, SDL_GetCurrentVideoDriver());
 
-        devs.push_back(new GLDevice(code, is_default, i));
+        devs.push_back(std::make_unique<GLDevice>(code, is_default, i));
     }
 
     return devs;
