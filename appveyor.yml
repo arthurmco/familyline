@@ -1,0 +1,22 @@
+version: 0.2.{build}
+
+pull_requests:
+  do_not_increment_build_number: true
+image: Visual Studio 2019
+
+cache: c:\tools\vcpkg\installed\
+
+install:
+  - vcpkg install cairo:x86-windows curl:x86-windows curlpp:x86-windows devil:x86-windows flatbuffers:x86-windows fmt:x86-windows glew:x86-windows glm:x86-windows libyaml:x86-windows nlohmann-json:x86-windows opengl:x86-windows pango:x86-windows sdl2:x86-windows tl-expected:x86-windows
+
+before_build:
+  - git submodule init
+  - git submodule update
+  - cmake -G "Visual Studio 16 2019" -A win32 -DCMAKE_TOOLCHAIN_FILE=c:/tools/vcpkg/scripts/buildsystems/vcpkg.cmake -DFLATBUFFERS_FLATC_EXECUTABLE=c:/tools/vcpkg/installed/x86-windows/tools/flatbuffers/flatc.exe .
+
+build:
+  project: $(APPVEYOR_BUILD_FOLDER)\$(APPVEYOR_PROJECT_NAME).sln
+  verbosity: minimal
+artifacts:
+  - path: Debug\familyline.exe
+    name: familyline.exe
