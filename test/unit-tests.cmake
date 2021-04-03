@@ -87,7 +87,7 @@ if (FLINE_BUILD_TESTS)
       message("No support for windows + address sanitizer yet")
     else()
       target_compile_options(familyline-tests PUBLIC "-fsanitize=address")
-      target_link_libraries( familyline-tests "-ggdb -fsanitize=address -static-libstdc++ -static-libasan -lrt")
+      target_link_libraries( familyline-tests "-ggdb -fsanitize=address")
     endif()
   endif(FLINE_DO_CHECK_ASAN)
 
