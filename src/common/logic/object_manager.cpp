@@ -48,6 +48,7 @@ ObjectManager::ObjectManager() { eventEmitter = new ObjectEventEmitter{}; }
 ObjectManager::~ObjectManager()
 {
     LogicService::getActionQueue()->removeEmitter(eventEmitter);
+    delete eventEmitter;
 }    
 
 
