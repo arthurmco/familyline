@@ -92,7 +92,6 @@ TEST(InputRecorderTest, TestIfInputRecords)
             g->runLoop();
 
         delete g;
-        delete gi.gui;
         delete w;
     }
 

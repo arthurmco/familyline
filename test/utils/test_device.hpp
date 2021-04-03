@@ -52,11 +52,12 @@ public:
 
 class TestDevice : public familyline::graphics::Device
 {
+private:
+    std::unique_ptr<TestShaderProgram> fwd = std::make_unique<TestShaderProgram>("forward");        
 public:
-
     TestDevice() {
         auto& sm = familyline::graphics::GFXService::getShaderManager();
-        sm->addShader(new TestShaderProgram{"forward"});
+        sm->addShader(fwd.get());
     }
     
     /// Get the device code, name and vendor

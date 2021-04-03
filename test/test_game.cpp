@@ -69,7 +69,6 @@ TEST(GameTest, TestIfGameStartsAndRuns)
     ASSERT_NE(-1, i);
 
     delete g;
-    delete gi.gui;
     delete w;
 
     LogicService::getActionQueue()->clearEvents();

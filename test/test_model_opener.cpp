@@ -123,6 +123,9 @@ TEST(ModelOpener, TestIfDynamicMD2Opens) {
     EXPECT_FLOAT_EQ(1.3170782, bb.maxX);
     EXPECT_FLOAT_EQ(4.4252915, bb.maxY);
     EXPECT_FLOAT_EQ(1.3170781, bb.maxZ);
+
+    for (auto* m: meshes)
+        delete m;
     
     GFXService::getShaderManager()->clear();
 }

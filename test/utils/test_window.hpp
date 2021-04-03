@@ -18,7 +18,8 @@ class TestWindow : public familyline::graphics::Window
 {
 private:
     TestRenderer* tr = nullptr;
-
+    TestGUIManager* gm_ = nullptr;
+    
 public:
     virtual void getSize(int& w, int& h) const
     {
@@ -45,6 +46,7 @@ public:
     virtual ~TestWindow()
     {
         if (tr) delete tr;
+        if (gm_) delete gm_;
     }
 
     virtual familyline::graphics::Renderer* createRenderer()
@@ -60,7 +62,8 @@ public:
     virtual familyline::graphics::gui::GUIManager* createGUIManager()
     {
         auto& ima = familyline::input::InputService::getInputManager();
-        return new TestGUIManager{*this, 800, 600, *ima.get()};
+        gm_ = new TestGUIManager{*this, 800, 600, *ima.get()};
+        return gm_;
     }
 
     virtual void showMessageBox(

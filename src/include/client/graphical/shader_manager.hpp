@@ -12,6 +12,7 @@ class ShaderManager
 private:
     int lastShader = -1;
 
+    // TODO: use a unique_ptr here
     std::map<std::string, ShaderProgram*> _shaders;
 
 public:
@@ -27,6 +28,7 @@ public:
     ShaderProgram* getShader(std::string_view name);
 
     void clear() { _shaders.clear(); }
+
 };
 
 }  // namespace familyline::graphics
