@@ -114,3 +114,26 @@ void NetworkClient::update()
     }
     recv_queue_mtx_.unlock();
 }
+
+/**
+ * Peek a packet from the client packet queue
+ *
+ * Return true if there is packets in the queue, and put the first packet in the queue
+ * at the `p` struct, or false if there is no packet
+ */
+bool NetworkClient::peek(Packet& p)
+{
+    if (!game_ready_ || recv_queue_.empty())
+        return false;
+
+    p = recv_queue_.front();
+    return true;
+}
+
+/**
+ * Add a packet to the client packet queue
+ */
+void NetworkClient::push(const Packet& p)
+{
+    send_queue_.push(p);
+}

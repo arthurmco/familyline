@@ -117,7 +117,24 @@ public:
      * Update the data, send and receive required messages
      */
     void update();
-   
+
+    /**
+     * Peek a packet from the client packet queue
+     *
+     * Return true if there is packets in the queue, and put the first packet in the queue
+     * at the `p` struct, or false if there is no packet
+     */
+    bool peek(Packet& p);
+    
+    /**
+     * Remove the packet in the front of the packet queue
+     */
+    void pop() { if (game_ready_) recv_queue_.pop(); }
+
+    /**
+     * Add a packet to the client packet queue
+     */
+    void push(const Packet&);
 };
 
 }  // namespace familyline::net

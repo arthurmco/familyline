@@ -5,63 +5,14 @@
     Copyright 2016, 2017, 2019-2020 Arthur Mendes.
 
 ***/
-
 #include <config.h>
 #include <fmt/core.h>
-
-#include <algorithm>
-#include <chrono>
-#include <iterator>
-
-#include "client/graphical/gui/gui_container_component.hpp"
-#include "common/net/network_client.hpp"
-#define GLM_FORCE_RADIANS
-
-#ifndef _WIN32
-#include <sys/utsname.h>
-#include <unistd.h>
-#endif
-
-#ifdef _WIN32
-#define _WINSOCKAPI_
-#define _WIN32_LEAN_AND_MEAN
-#include <Windows.h>
-#include <ws2tcpip.h>
-#define usleep(x) Sleep(x / 1000);
-#define sleep(x) Sleep(x * 1000);
-#endif
-
 #include <fmt/format.h>
 
+#include <algorithm>
 #include <atomic>
-#include <cinttypes>
-#include <client/HumanPlayer.hpp>
-#include <client/config_reader.hpp>
-#include <client/game.hpp>
-#include <client/graphical/device.hpp>
-#include <client/graphical/framebuffer.hpp>
-#include <client/graphical/gui/gui_button.hpp>
-#include <client/graphical/gui/gui_checkbox.hpp>
-#include <client/graphical/gui/gui_imageview.hpp>
-#include <client/graphical/gui/gui_label.hpp>
-#include <client/graphical/gui/gui_listbox.hpp>
-#include <client/graphical/gui/gui_manager.hpp>
-#include <client/graphical/gui/gui_textbox.hpp>
-#include <client/graphical/gui/gui_window.hpp>
-#include <client/graphical/renderer.hpp>
-#include <client/graphical/shader_manager.hpp>
-#include <client/graphical/window.hpp>
-#include <client/input/InputPicker.hpp>
-#include <client/input/input_service.hpp>
-#include <client/loop_runner.hpp>
-#include <client/params.hpp>
-#include <client/player_enumerator.hpp>
-#include <common/logger.hpp>
-#include <common/logic/input_recorder.hpp>
-#include <common/logic/input_reproducer.hpp>
-#include <common/net/game_packet_server.hpp>
-#include <common/net/server.hpp>
-#include <common/net/server_finder.hpp>
+#include <chrono>
+#include <client/familyline.hpp>
 #include <concepts>
 #include <cstdio>
 #include <cstdlib>
@@ -69,6 +20,7 @@
 #include <ctime>
 #include <filesystem>
 #include <glm/gtc/matrix_transform.hpp>  //glm::lookAt()
+#include <iterator>
 #include <thread>
 
 using namespace familyline;
@@ -79,17 +31,6 @@ using namespace familyline::input;
 using namespace familyline::net;
 
 // TODO: create a shader manager *and* a texture manager
-
-#ifdef WIN32
-#include <io.h>
-#define isatty _isatty
-#define fileno _fileno
-#endif
-
-#ifdef _MSC_VER
-#undef main  // somehow vs does not find main()
-
-#endif
 
 /**
  * Initialize global sockets.
@@ -114,6 +55,32 @@ void end_network()
     WSACleanup();
 #endif
 }
+
+void run_game_loop(LoopRunner& lr, int& framecount)
+{
+    while (true) {
+        if (!lr.run()) {
+            break;
+        }
+
+        framecount++;
+    }
+}
+
+/**
+ * This function creates a game object, that will represents the state of a game
+ *
+ * We pass some interface information, a loop runner, parameter data (the StartGameinfo),
+ * configuration data, and a function that returns a session, i.e, the objects for players
+ * and teams (we call them colonies)
+ *
+ * Since multiplayer and singleplayer have different player objects, we need this callback
+ * to create them
+ */
+template <typename SessionF>
+Game* start_game(
+    GraphicalInfo ginfo, LoopRunner& lr, const StartGameInfo& sgai, ConfigData& confdata,
+    SessionF fnSession);
 
 /**
  * Wait for a list futures promises, then return
@@ -162,7 +129,8 @@ bool waitFutures(
 }
 
 int start_networked_game(
-    GamePacketServer& gps, std::vector<NetworkClient>& clients, ConfigData& cdata)
+    GraphicalInfo& ginfo, GamePacketServer& gps, std::vector<NetworkClient>& clients,
+    ConfigData& cdata)
 {
     printf("Loading the game...\n");
     printf("\tWaiting for the other clients to load\n");
@@ -245,11 +213,32 @@ int start_networked_game(
     quitting = true;
     netthread.join();
 
+    LoopRunner lr;
+
+    int frames = 0;
+
+    auto createMultiplayerSession_fn = [](logic::Terrain& map, auto& local_player_info) {
+        std::map<unsigned int /*player_id*/, std::reference_wrapper<logic::Colony>> player_colony;
+
+        auto pm = std::make_unique<PlayerManager>();
+        auto cm = std::make_unique<ColonyManager>();
+
+        return PlayerSession{std::move(pm), std::move(cm), player_colony};
+    };
+
+    Game* g = start_game(
+        ginfo, lr, StartGameInfo{ASSET_FILE_DIR "terrain_test.flte", std::nullopt}, cdata,
+        createMultiplayerSession_fn);
+
+    lr.load([&]() { return g->runLoop(); });
+    run_game_loop(lr, frames);
+
     return 0;
 }
 
 void start_networked_game_room(
-    CServer& cserv, std::function<void(std::string, NetResult)> errHandler, ConfigData& cdata)
+    GraphicalInfo& ginfo, CServer& cserv, std::function<void(std::string, NetResult)> errHandler,
+    ConfigData& cdata)
 {
     CServerInfo si = {};
     auto ret       = cserv.getServerInfo(si);
@@ -381,7 +370,7 @@ void start_networked_game_room(
                         continue;
                     }
 
-                    start_networked_game(*gps, clients, cdata);
+                    start_networked_game(ginfo, *gps, clients, cdata);
                     exit = true;
                 }
 
@@ -524,20 +513,7 @@ std::tuple<std::string, std::string, std::string> get_system_name()
 }
 
 static int show_starting_menu(
-    const ParamInfo& pi, Framebuffer* f3D, Framebuffer* fGUI, graphics::Window* win,
-    GUIManager* guir, size_t gwidth, size_t gheight, LoopRunner& lr, ConfigData& confdata);
-
-/**
- * Information required to start a game, besides player information
- */
-struct StartGameInfo {
-    /// The terrain file
-    std::string mapFile;
-
-    /// If present, the input record file.
-    /// If this is present, it means that we have a recorded game.
-    std::optional<std::string> inputFile;
-};
+    const ParamInfo& pi, GraphicalInfo ginfo, LoopRunner& lr, ConfigData& confdata);
 
 template <class... Ts>
 struct overload : Ts... {
@@ -546,15 +522,16 @@ struct overload : Ts... {
 template <class... Ts>
 overload(Ts...) -> overload<Ts...>;
 
+template <typename SessionF>
 Game* start_game(
-    Framebuffer* f3D, Framebuffer* fGUI, graphics::Window* win, GUIManager* guir, LoopRunner& lr,
-    const StartGameInfo& sgai, ConfigData& confdata)
+    GraphicalInfo ginfo, LoopRunner& lr, const StartGameInfo& sgai, ConfigData& confdata,
+    SessionF fnSession)
 {
     GFXGameInit gi{
-        win,
-        f3D,
-        fGUI,
-        guir,
+        ginfo.win,
+        ginfo.f3D,
+        ginfo.fGUI,
+        ginfo.guir,
     };
 
     auto& log = LoggerService::getLogger();
@@ -568,7 +545,7 @@ Game* start_game(
         if (!irepr->open()) {
             mapfile = ASSET_FILE_DIR "terrain_test.flte";
             irepr.reset();
-            win->showMessageBox(
+            ginfo.win->showMessageBox(
                 "Familyline error", SysMessageBoxFlags::Error,
                 fmt::format(
                     "Could not open input record {}\n"
@@ -594,18 +571,10 @@ Game* start_game(
     g->initAssets();
     ObjectFactory* of = g->initObjectFactory();
 
-    auto createNormalSession_fn = [&]() {
-        /// running a normal game
-        session         = initSinglePlayerSession(map, pinfo);
-        pm              = std::move(session.players);
-        cm              = std::move(session.colonies);
-        human_player_id = pinfo.id;
-    };
-
     if (irepr) {
         if (!irepr->verifyObjectChecksums(of)) {
             irepr.reset();
-            win->showMessageBox(
+            ginfo.win->showMessageBox(
                 "Familyline error", SysMessageBoxFlags::Error,
                 fmt::format(
                     "Could not open input record {}, objects do not match\n"
@@ -629,7 +598,10 @@ Game* start_game(
             session.player_colony.emplace(human_player_id, std::reference_wrapper(colony));
         }
     } else {
-        createNormalSession_fn();
+        session         = fnSession(map, pinfo);
+        pm              = std::move(session.players);
+        cm              = std::move(session.colonies);
+        human_player_id = pinfo.id;
     }
 
     if (human_player_id == -1) {
@@ -680,18 +652,7 @@ Game* start_game(
     return g;
 }
 
-void run_game_loop(LoopRunner& lr, int& framecount)
-{
-    while (true) {
-        if (!lr.run()) {
-            break;
-        }
-
-        framecount++;
-    }
-}
-
-void start_networked_game_cmdline(std::string addr, ConfigData& cdata)
+void start_networked_game_cmdline(GraphicalInfo ginfo, std::string addr, ConfigData& cdata)
 {
     auto treat_errors = [&](std::string msg, NetResult ret) {
         switch (ret) {
@@ -747,7 +708,7 @@ void start_networked_game_cmdline(std::string addr, ConfigData& cdata)
         return;
     }
 
-    start_networked_game_room(cserv, treat_errors, cdata);
+    start_networked_game_room(ginfo, cserv, treat_errors, cdata);
 
     cserv.logout();
 }
@@ -846,7 +807,7 @@ int main(int argc, char const* argv[])
         }
 
         auto& device = GFXService::getDevice();
-        
+
         auto ipr = std::make_unique<InputProcessor>();
         InputService::setInputManager(std::make_unique<InputManager>(*ipr.get()));
         auto& ima = InputService::getInputManager();
@@ -887,8 +848,14 @@ int main(int argc, char const* argv[])
 
             std::string mapFile = pi.inputFile ? "" : *pi.mapFile;
 
+            auto createNormalSession_fn = [](logic::Terrain& map, auto& local_player_info) {
+                /// running a normal game
+                return initSinglePlayerSession(map, local_player_info);
+            };
+
             Game* g = start_game(
-                f3D, fGUI, win, guir, lr, StartGameInfo{mapFile, pi.inputFile}, confdata);
+                GraphicalInfo{f3D, fGUI, win, guir, (size_t)gwidth, (size_t)gheight}, lr,
+                StartGameInfo{mapFile, pi.inputFile}, confdata, createNormalSession_fn);
 
             if (g) {
                 lr.load([&]() { return g->runLoop(); });
@@ -910,9 +877,13 @@ int main(int argc, char const* argv[])
             }
 
             fmt::print("Connecting to {}\n", addr);
-            start_networked_game_cmdline(addr, confdata);
+            start_networked_game_cmdline(
+                GraphicalInfo{f3D, fGUI, win, guir, (size_t)gwidth, (size_t)gheight}, addr,
+                confdata);
         } else {
-            return show_starting_menu(pi, f3D, fGUI, win, guir, gwidth, gheight, lr, confdata);
+            return show_starting_menu(
+                pi, GraphicalInfo{f3D, fGUI, win, guir, (size_t)gwidth, (size_t)gheight}, lr,
+                confdata);
         }
 
     } catch (shader_exception& se) {
@@ -980,8 +951,7 @@ int main(int argc, char const* argv[])
 }
 
 static int show_starting_menu(
-    const ParamInfo& pi, Framebuffer* f3D, Framebuffer* fGUI, graphics::Window* win,
-    GUIManager* guir, size_t gwidth, size_t gheight, LoopRunner& lr, ConfigData& confdata)
+    const ParamInfo& pi, GraphicalInfo ginfo, LoopRunner& lr, ConfigData& confdata)
 {
     std::thread async_test;
     std::atomic<int> val    = 0;
@@ -996,7 +966,7 @@ static int show_starting_menu(
     bool r = true;
     // auto deflistener = InputManager::GetInstance()->GetDefaultListener();
 
-    GUIWindow* gwin = guir->createGUIWindow("main", gwidth, gheight);
+    GUIWindow* gwin = ginfo.guir->createGUIWindow("main", ginfo.gwidth, ginfo.gheight);
     CServer cserv{};
 
     Label* l = new Label(0.37, 0.03, "FAMILYLINE");
@@ -1030,7 +1000,7 @@ static int show_starting_menu(
     });
 
     bsettings->setClickCallback([&](auto* cc) {
-        GUIWindow* gsettings = guir->createGUIWindow("settings", gwidth, gheight);
+        GUIWindow* gsettings = ginfo.guir->createGUIWindow("settings", ginfo.gwidth, ginfo.gheight);
         // TODO: copy label?
         auto lb = std::make_unique<Label>(0.37, 0.03, "FAMILYLINE");
         lb->modifyAppearance([](ControlAppearance& ca) {
@@ -1050,13 +1020,13 @@ static int show_starting_menu(
             std::make_unique<Button>(200, 50, "Return");  // Button(0.1, 0.2, 0.8, 0.1, "New Game");
 
         bret->setClickCallback([&](auto* c) {
-            GUIWindow* gsettings          = guir->getGUIWindow("settings");
+            GUIWindow* gsettings          = ginfo.guir->getGUIWindow("settings");
             Checkbox* recordGame          = (Checkbox*)gsettings->get("recordGame");
             Textbox* txtuname             = (Textbox*)gsettings->get("txtuname");
             confdata.enableInputRecording = recordGame->getState();
             confdata.player.username      = txtuname->getText();
-            guir->closeWindow(*gsettings);
-            guir->destroyGUIWindow("settings");
+            ginfo.guir->closeWindow(*gsettings);
+            ginfo.guir->destroyGUIWindow("settings");
         });
 
         gsettings->add(0.37, 0.03, ControlPositioning::CenterX, std::move(lb));
@@ -1069,7 +1039,7 @@ static int show_starting_menu(
         gsettings->add(0.05, 0.4, ControlPositioning::Relative, std::move(txtname), "txtuname");
         gsettings->add(0.37, 0.9, ControlPositioning::CenterX, std::move(bret));
 
-        guir->showWindow(gsettings);
+        ginfo.guir->showWindow(gsettings);
     });
 
     std::map<std::string, ServerInfo> silist;
@@ -1079,7 +1049,7 @@ static int show_starting_menu(
         silist.clear();
         simtx.unlock();
 
-        GUIWindow* gmplayer = guir->createGUIWindow("mplayer", gwidth, gheight);
+        GUIWindow* gmplayer = ginfo.guir->createGUIWindow("mplayer", ginfo.gwidth, ginfo.gheight);
         // TODO: copy label?
         auto lb = std::make_unique<Label>(0.37, 0.03, "FAMILYLINE");
         lb->modifyAppearance([](ControlAppearance& ca) {
@@ -1104,7 +1074,7 @@ static int show_starting_menu(
         auto txtaddr             = std::make_unique<Textbox>(300, 40, "");
         auto serverlist          = std::make_unique<Listbox>(800 * 0.7, 600 * 0.4);
         serverlist->onSelectItem = [&](std::string addr) {
-            GUIWindow* gmplayer = guir->getGUIWindow("mplayer");
+            GUIWindow* gmplayer = ginfo.guir->getGUIWindow("mplayer");
 
             simtx.lock();
             ServerInfo si        = silist[addr];
@@ -1126,7 +1096,7 @@ static int show_starting_menu(
         bconnect->setClickCallback([&](auto* c) {
             Button* b = (Button*)c;
 
-            GUIWindow* gmplayer = guir->getGUIWindow("mplayer");
+            GUIWindow* gmplayer = ginfo.guir->getGUIWindow("mplayer");
             auto addr           = ((Textbox*)gmplayer->get("txtaddr"))->getText();
             if (addr.size() < 3) return;
 
@@ -1135,17 +1105,17 @@ static int show_starting_menu(
             auto errHandler = [&](std::string msg, NetResult ret) {
                 switch (ret) {
                     case NetResult::ConnectionError:
-                        win->showMessageBox(
+                        ginfo.win->showMessageBox(
                             msg, SysMessageBoxFlags::Warning,
                             fmt::format("Could not connect to address {}: Connection error", addr));
                         break;
                     case NetResult::WrongPassword:
-                        win->showMessageBox(
+                        ginfo.win->showMessageBox(
                             msg, SysMessageBoxFlags::Warning,
                             fmt::format("Server {} has a password", addr));
                         break;
                     case NetResult::LoginFailure:
-                        win->showMessageBox(
+                        ginfo.win->showMessageBox(
                             msg, SysMessageBoxFlags::Warning,
                             fmt::format(
                                 "Could not log in to {}\nThe server was found, but we could not "
@@ -1153,7 +1123,7 @@ static int show_starting_menu(
                                 addr));
                         break;
                     case NetResult::ConnectionTimeout:
-                        win->showMessageBox(
+                        ginfo.win->showMessageBox(
                             msg, SysMessageBoxFlags::Warning,
                             fmt::format(
                                 "Timed out while connecting to {}\nThe server probably does not "
@@ -1161,7 +1131,7 @@ static int show_starting_menu(
                                 addr));
                         break;
                     case NetResult::ServerError:
-                        win->showMessageBox(
+                        ginfo.win->showMessageBox(
                             msg, SysMessageBoxFlags::Warning,
                             fmt::format(
                                 "Error while connecting to {}. The server sent incorrect data to "
@@ -1169,7 +1139,7 @@ static int show_starting_menu(
                                 addr));
                         break;
                     case NetResult::NotAllClientsConnected:
-                        win->showMessageBox(
+                        ginfo.win->showMessageBox(
                             msg, SysMessageBoxFlags::Warning,
                             fmt::format(
                                 "Error while connecting to {}. The server reported that not all "
@@ -1178,7 +1148,7 @@ static int show_starting_menu(
                                 addr));
                         break;
                     default:
-                        win->showMessageBox(
+                        ginfo.win->showMessageBox(
                             msg, SysMessageBoxFlags::Warning,
                             fmt::format(
                                 "Could not connect to address {}: unknown error {}", addr, ret));
@@ -1194,7 +1164,7 @@ static int show_starting_menu(
                 return;
             }
 
-            start_networked_game_room(cserv, errHandler, confdata);
+            start_networked_game_room(ginfo, cserv, errHandler, confdata);
 
             cserv.logout();
             b->setText("Connect...");
@@ -1204,15 +1174,15 @@ static int show_starting_menu(
             std::make_unique<Button>(200, 30, "Return");  // Button(0.1, 0.2, 0.8, 0.1, "New Game");
 
         bret->setClickCallback([&](auto* c) {
-            GUIWindow* gmplayer = guir->getGUIWindow("mplayer");
+            GUIWindow* gmplayer = ginfo.guir->getGUIWindow("mplayer");
             Listbox* slist      = (Listbox*)gmplayer->get("serverlist");
 
             aexit = true;
             printf("%s ==== \n", slist->getSelectedItem().c_str());
 
             sf.stopDiscover();
-            guir->closeWindow(*gmplayer);
-            guir->destroyGUIWindow("mplayer");
+            ginfo.guir->closeWindow(*gmplayer);
+            ginfo.guir->destroyGUIWindow("mplayer");
         });
 
         gmplayer->add(0.37, 0.03, ControlPositioning::CenterX, std::move(lb));
@@ -1230,7 +1200,7 @@ static int show_starting_menu(
                 " \033[1m{}\033[0m ({}/{})\n{}:{}\n\n", si.name, si.player_count, si.player_max,
                 si.ip_addr, si.port);
 
-            GUIWindow* gmplayer = guir->getGUIWindow("mplayer");
+            GUIWindow* gmplayer = ginfo.guir->getGUIWindow("mplayer");
             Listbox* slist      = (Listbox*)gmplayer->get("serverlist");
 
             simtx.lock();
@@ -1245,7 +1215,7 @@ static int show_starting_menu(
                                     si.name, si.ip_addr, si.port, si.player_count, si.player_max)));
         });
 
-        guir->showWindow(gmplayer);
+        ginfo.guir->showWindow(gmplayer);
     });
 
     bnew->setClickCallback([&](Control* cc) {
@@ -1257,11 +1227,16 @@ static int show_starting_menu(
             }
         }
 
-        guir->closeWindow(*gwin);
+        ginfo.guir->closeWindow(*gwin);
+
+        auto createNormalSession_fn = [](logic::Terrain& map, auto& local_player_info) {
+            /// running a normal game
+            return initSinglePlayerSession(map, local_player_info);
+        };
 
         g = start_game(
-            f3D, fGUI, win, guir, lr,
-            StartGameInfo{ASSET_FILE_DIR "terrain_test.flte", std::nullopt}, confdata);
+            ginfo, lr, StartGameInfo{ASSET_FILE_DIR "terrain_test.flte", std::nullopt}, confdata,
+            createNormalSession_fn);
 
         if (g) {
             lr.load([&]() { return g->runLoop(); });
@@ -1277,7 +1252,7 @@ static int show_starting_menu(
     gwin->add(0.1, 0.52, ControlPositioning::CenterX, std::unique_ptr<Control>((Control*)bquit));
     gwin->add(0.2, 0.01, ControlPositioning::CenterX, std::unique_ptr<Control>((Control*)ilogo));
 
-    guir->showWindow(gwin);
+    ginfo.guir->showWindow(gwin);
     // guir->add(0, 0, ControlPositioning::Pixel, std::unique_ptr<Control>((Control*)gwin));
 
     ima->addListenerHandler([&](HumanInputAction hia) {
@@ -1297,17 +1272,17 @@ static int show_starting_menu(
         // Input
         ima->processEvents();
 
-        guir->receiveEvent();
-        guir->runCallbacks();
-        guir->update();
+        ginfo.guir->receiveEvent();
+        ginfo.guir->runCallbacks();
+        ginfo.guir->update();
 
         // Render
-        fGUI->startDraw();
-        guir->render(0, 0);
+        ginfo.fGUI->startDraw();
+        ginfo.guir->render(0, 0);
         // guir->renderToScreen();
-        fGUI->endDraw();
+        ginfo.fGUI->endDraw();
 
-        win->update();
+        ginfo.win->update();
 
         double e = SDL_GetTicks();
         if ((e - b) < 1000 / 60.0) SDL_Delay((unsigned int)(1000 / 60.0 - (e - b)));
@@ -1326,9 +1301,9 @@ static int show_starting_menu(
 
     if (g) delete g;
 
-    delete win;
-    delete f3D;
-    delete fGUI;
+    delete ginfo.win;
+    delete ginfo.f3D;
+    delete ginfo.fGUI;
     fmt::print("\nExited. ({:d} frames)\n", frames);
 
     return 0;

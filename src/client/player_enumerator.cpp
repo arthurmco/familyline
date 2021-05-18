@@ -73,8 +73,6 @@ std::unique_ptr<logic::PlayerManager> initPlayerManager(
         std::unique_ptr<Player>(new HumanPlayer{*pm.get(), terrain, human_info.name.c_str(), 0, true}));
     pm->add(std::unique_ptr<Player>(new DummyPlayer{*pm.get(), terrain, "Dummy Player", 1}));
 
-    fprintf(stderr, "%x ----", hid);
-
     human_info.id = hid;
     return std::move(pm);
 }
@@ -94,7 +92,6 @@ std::unique_ptr<logic::ColonyManager> initColonyManager(
     auto playerlist = pm.getPlayerNames();
     auto cm         = std::make_unique<ColonyManager>();
 
-    puts("aaa");
     for (auto [id, name] : playerlist) {
         // generate a random color
         // we will see the mess when the game starts showing this color
