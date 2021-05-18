@@ -12,7 +12,6 @@ addons:
 
     packages:
       - g++-10
-      - clang-11
       - libglm-dev
       - libglew2.1
       - libglew-dev
@@ -21,6 +20,8 @@ addons:
       - libsdl2-dev
       - libdevil1c2
       - libdevil-dev
+      - libclang-common-11-dev
+      - clang-11
       - libcairo2
       - libcairo2-dev
       - libyaml-0-2
