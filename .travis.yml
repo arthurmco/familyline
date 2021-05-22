@@ -29,7 +29,6 @@ addons:
       - libdevil-dev
       - libcairo2
       - libcairo2-dev
-      - llvm-toolchain-11
       - clang-11
       - libyaml-0-2
       - libyaml-dev
