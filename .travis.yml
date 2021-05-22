@@ -12,9 +12,9 @@ addons:
   apt:
     sources:
       - # i386 not available
-      - sourceline: 'deb http://apt.llvm.org/focal/ llvm-toolchain-focal main'
+      - sourceline: 'deb http://apt.llvm.org/focal/ llvm-toolchain-focal-11 main'
         key_url: 'https://apt.llvm.org/llvm-snapshot.gpg.key'
-      - sourceline: 'deb-src http://apt.llvm.org/focal/ llvm-toolchain-focal main'
+      - sourceline: 'deb-src http://apt.llvm.org/focal/ llvm-toolchain-focal-11 main'
         key_url: 'https://apt.llvm.org/llvm-snapshot.gpg.key'
 
     packages:
