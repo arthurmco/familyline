@@ -4,7 +4,7 @@ dist: focal
 os:
   - linux
  
-before_install:
+before_script:
   - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
   - sudo add-apt-repository -y ppa:llvm-toolchain-focal-11/main
   - sudo apt-get -q update
