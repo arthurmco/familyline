@@ -29,9 +29,6 @@ addons:
       - libdevil-dev
       - libcairo2
       - libcairo2-dev
-      - clang-11
-      - libclang-common-11-dev
-      - libclang-11-dev 
       - libyaml-0-2
       - libyaml-dev
       - libpango-1.0-0
