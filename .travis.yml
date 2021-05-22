@@ -21,7 +21,7 @@ addons:
       - libsdl2-dev
       - libdevil1c2
       - libdevil-dev
-      - libclang-common-11-dev
+      - libclang-common-dev
       - clang-11
       - libcairo2
       - libcairo2-dev
