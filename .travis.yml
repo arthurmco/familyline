@@ -11,10 +11,6 @@ before_install:
 
 addons:
   apt:
-    sources:
-      - ubuntu-toolchain-r-test
-      - llvm-toolchain-focal-11
-
     packages:
       - g++-10
       - libglm-dev
