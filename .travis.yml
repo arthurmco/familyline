@@ -8,6 +8,7 @@ before_script:
   - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
   - sudo add-apt-repository -y ppa:llvm-toolchain-focal-11/main
   - sudo apt-get -q update
+  - sudo apt-get -y install clang-11
 
 addons:
   apt:
@@ -21,7 +22,6 @@ addons:
       - libsdl2-dev
       - libdevil1c2
       - libdevil-dev
-      - clang-11
       - libcairo2
       - libcairo2-dev
       - libyaml-0-2
