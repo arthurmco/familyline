@@ -10,6 +10,13 @@ before_script:
 
 addons:
   apt:
+    sources:
+      - # i386 not available
+      - sourceline: 'deb http://apt.llvm.org/focal/ llvm-toolchain-focal main'
+        key_url: 'https://apt.llvm.org/llvm-snapshot.gpg.key'
+      - sourceline: 'deb-src http://apt.llvm.org/focal/ llvm-toolchain-focal main'
+        key_url: 'https://apt.llvm.org/llvm-snapshot.gpg.key'
+
     packages:
       - g++-10
       - libglm-dev
@@ -23,6 +30,7 @@ addons:
       - libcairo2
       - libcairo2-dev
       - llvm-toolchain-11
+      - clang-11
       - libyaml-0-2
       - libyaml-dev
       - libpango-1.0-0
