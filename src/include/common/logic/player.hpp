@@ -122,6 +122,7 @@ protected:
     const Terrain& terr_;
 
     void pushAction(PlayerInputType type);
+    void pushAction(PlayerInputType type, uint64_t tick);
 
     std::optional<ICamera*> camera_;
     std::vector<std::weak_ptr<GameObject>> selected_;

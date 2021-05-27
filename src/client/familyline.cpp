@@ -21,7 +21,10 @@
 #include <filesystem>
 #include <glm/gtc/matrix_transform.hpp>  //glm::lookAt()
 #include <iterator>
+#include <memory>
 #include <thread>
+
+#include "common/net/network_player.hpp"
 
 using namespace familyline;
 using namespace familyline::logic;
@@ -217,12 +220,41 @@ int start_networked_game(
 
     int frames = 0;
 
-    auto createMultiplayerSession_fn = [](logic::Terrain& map, auto& local_player_info) {
+    auto createMultiplayerSession_fn = [&](logic::Terrain& map, auto& local_player_info) {
         std::map<unsigned int /*player_id*/, std::reference_wrapper<logic::Colony>> player_colony;
 
         auto pm = std::make_unique<PlayerManager>();
-        auto cm = std::make_unique<ColonyManager>();
+        for (auto& c : clients) {
+            pm->add(std::make_unique<NetworkPlayer>(*pm.get(), map, c), false);
+        }
+        auto hid = pm->add(
+            std::unique_ptr<Player>(new HumanPlayer{*pm.get(), map, local_player_info.name.c_str(), 0, true}));
+        local_player_info.id = hid;
+        printf("\n%d\n", hid);
 
+        auto cm = std::make_unique<ColonyManager>();
+        for (auto& c : clients) {
+            auto* player = *pm->get(c.id());
+            int color    = (int)player->getCode() & 0x00ffffff;
+
+            auto& alliance = cm->createAlliance("alliance");
+            auto& colony   = cm->createColony(
+                *player, color, std::optional<std::reference_wrapper<Alliance>>{alliance});
+            
+            player_colony.emplace(c.id(), std::reference_wrapper(colony));
+        }
+
+        {
+            auto* player = *pm->get(hid);
+            int color    = (int)player->getCode() & 0x00ffffff;
+
+            auto& alliance = cm->createAlliance("alliance");
+            auto& colony   = cm->createColony(
+                *player, color, std::optional<std::reference_wrapper<Alliance>>{alliance});
+            
+            player_colony.emplace(hid, std::reference_wrapper(colony));
+        }
+        
         return PlayerSession{std::move(pm), std::move(cm), player_colony};
     };
 

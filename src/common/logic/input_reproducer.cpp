@@ -16,6 +16,8 @@
 #include <functional>
 #include <optional>
 
+#include "input_generated.h"
+
 using namespace familyline::logic;
 
 using checksum_raw_t =
@@ -258,14 +260,14 @@ bool InputReproducer::verifyObjectChecksums(ObjectFactory* const of)
     if (pchecksum_.size() == 0) {
         log->write(
             "input-reproducer", LogType::Warning,
-            "input file %s has no object checksum field. We cannot determine what the game will use",
+            "input file %s has no object checksum field. We cannot determine what the game will "
+            "use",
             file_.data());
         log->write(
-            "input-reproducer", LogType::Warning,
-            "It is better not to continue read the file");
-        return false;        
+            "input-reproducer", LogType::Warning, "It is better not to continue read the file");
+        return false;
     }
-    
+
     if (checksumlist.size() != pchecksum_.size()) {
         log->write(
             "input-reproducer", LogType::Warning,
@@ -287,8 +289,8 @@ bool InputReproducer::verifyObjectChecksums(ObjectFactory* const of)
         if (checksumlist[stype] != checksum) {
             log->write(
                 "input-reproducer", LogType::Error,
-                "input file %s has a different checksum of building type '%s'",
-                file_.data(), stype.c_str());
+                "input file %s has a different checksum of building type '%s'", file_.data(),
+                stype.c_str());
             return false;
         }
 
@@ -299,11 +301,9 @@ bool InputReproducer::verifyObjectChecksums(ObjectFactory* const of)
     if (std::find(foundChecksums.begin(), foundChecksums.end(), false) != foundChecksums.end()) {
         log->write(
             "input-reproducer", LogType::Error,
-            "we have some objects in the file '%s' that were not in this game",
-            file_.data());
+            "we have some objects in the file '%s' that were not in this game", file_.data());
         return false;
     }
-
 
     return true;
 }
@@ -399,70 +399,21 @@ std::optional<PlayerInputAction> InputReproducer::getNextAction()
     flatbuffers::FlatBufferBuilder builder;
     auto actioninfo = flatbuffers::GetRoot<InputElement>((uint8_t*)data);
 
-    PlayerInputType type;
-    switch (actioninfo->type_type()) {
-        case InputType_cmd: {
-            auto cmd = actioninfo->type_as_cmd();
-            auto val = std::monostate{};
-
-            switch (cmd->args()->args()->size()) {
-                case 0: type = CommandInput{cmd->command()->str(), std::monostate{}}; break;
-
-                case 1:
-                    type = CommandInput{cmd->command()->str(), cmd->args()->args()->Get(0)};
-                    break;
-                case 2:
-                    type = CommandInput{
-                        cmd->command()->str(),
-                        std::array<int, 2>{
-                            (int)cmd->args()->args()->Get(0), (int)cmd->args()->args()->Get(1)}};
-                    break;
-                default:
-                    log->write(
-                        "input-reproducer", LogType::Error,
-                        "invalid parameter count for command (%zu)", cmd->args()->args()->size());
-                    type = CommandInput{cmd->command()->str(), std::monostate{}};
-                    break;
+    PlayerInputType type = deserializeInputAction(
+        actioninfo, [](const InputElement* a) { return a->type_type(); },
+        [&](const InputElement* a, familyline::InputType type) {
+            switch (type) {
+            case familyline::InputType_cmd: return (void*)a->type_as_cmd();
+            case familyline::InputType_sel: return (void*)a->type_as_sel();
+            case familyline::InputType_obj_move: return (void*)a->type_as_obj_move();
+            case familyline::InputType_cam_move: return (void*)a->type_as_cam_move();
+            case familyline::InputType_cam_rotate: return (void*)a->type_as_cam_rotate();
+            case familyline::InputType_create: return (void*)a->type_as_create();
+            default:
+                log->write("input-reproducer", LogType::Fatal, "Invalid input message type (%02x)", type);
+                return (void*)nullptr;
             }
-
-        } break;
-        case InputType_sel: {
-            auto sel = actioninfo->type_as_sel();
-            std::vector<long unsigned int> objects;
-
-            std::copy(
-                sel->objects()->values()->cbegin(), sel->objects()->values()->cend(),
-                std::back_inserter(objects));
-            type = SelectAction{objects};
-        } break;
-        case InputType_obj_move: {
-            auto omove = actioninfo->type_as_obj_move();
-            int xPos = (int)omove->x_pos(), yPos = (int)omove->y_pos();
-
-            type = ObjectMove{xPos, yPos};
-        } break;
-        case InputType_cam_move: {
-            auto cmove = actioninfo->type_as_cam_move();
-            double dX = cmove->x_delta(), dY = cmove->y_delta(), dZoom = cmove->zoom_delta();
-
-            type = CameraMove{dX, dY, dZoom};
-        } break;
-        case InputType_cam_rotate: {
-            auto crot      = actioninfo->type_as_cam_rotate();
-            double radians = crot->radians();
-
-            type = CameraRotate{radians};
-        } break;
-        case InputType_create: {
-            auto centity      = actioninfo->type_as_create();
-            std::string etype = centity->type()->str();
-            int xPos = centity->x_pos(), yPos = centity->y_pos();
-
-            type = CreateEntity{etype, xPos, yPos};
-        } break;
-
-        default: type = CommandInput{"null", 0ul}; break;
-    }
+        });
 
     auto val = std::optional<PlayerInputAction>{PlayerInputAction{
         actioninfo->timestamp(), actioninfo->playercode(), (uint32_t)actioninfo->tick(), type}};

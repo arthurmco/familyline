@@ -1,17 +1,16 @@
 #include <flatbuffers/flatbuffers.h>
+#include <fmt/format.h>
 #include <input_generated.h>
 #include <input_serialize_generated.h>
 #include <zlib.h>
 
-#include <filesystem>
 #include <cerrno>
 #include <cinttypes>
 #include <common/logger.hpp>
 #include <common/logic/input_file.hpp>
 #include <common/logic/input_recorder.hpp>
 #include <common/logic/object_factory.hpp>
-
-#include <fmt/format.h>
+#include <filesystem>
 
 using namespace familyline::logic;
 
@@ -32,10 +31,10 @@ flatbuffers::Offset<familyline::ObjectChecksums> serializeChecksums(
     std::vector<flatbuffers::Offset<familyline::ObjectChecksum>> checksums;
 
     for (auto [type, checksum] : of->getObjectChecksums()) {
-        auto sertype = builder.CreateString(type);
+        auto sertype     = builder.CreateString(type);
         auto serchecksum = builder.CreateVector(checksum.data(), checksum.size());
-        auto serval = familyline::CreateObjectChecksum(builder, serchecksum);
-        
+        auto serval      = familyline::CreateObjectChecksum(builder, serchecksum);
+
         typenames.push_back(sertype);
         checksums.push_back(serval);
     }
@@ -59,14 +58,12 @@ bool InputRecorder::createFile(std::string_view path, ObjectFactory* const of)
 
     if (std::filesystem::is_regular_file(path)) {
         auto oldpath = path;
-        path = fmt::format("new-{}", path);
+        path         = fmt::format("new-{}", path);
         LoggerService::getLogger()->write(
             "input-recorder", LogType::Error, "file '%s' already exists!, renaming to '%s'",
             oldpath.data(), path.data());
-
     }
 
-    
     f_ = fopen(path.data(), "wb+");
     if (!f_) {
         LoggerService::getLogger()->write(
@@ -121,6 +118,81 @@ template <class... Ts>
 overload(Ts...) -> overload<Ts...>;
 
 /**
+ * Convert a PlayerInputAction to its serialized representation as a flatbuffer
+ *
+ * This can be used in the input recorder as well as in the network input parser.
+ */
+void familyline::logic::serializeInputAction(
+    const PlayerInputType& pit, familyline::InputType& type_val,
+    flatbuffers::Offset<void>& type_data, flatbuffers::FlatBufferBuilder& builder)
+{
+    std::visit(
+        overload{
+            [&](const CommandInput& a) {
+                auto cstr = builder.CreateString(a.commandName);
+
+                std::vector<uint64_t> params;
+                if (auto* objectID = std::get_if<object_id_t>(&a.param); objectID) {
+                    params = {*objectID};
+                } else if (auto* arr = std::get_if<std::array<int, 2>>(&a.param); arr) {
+                    params = {(unsigned long)(*arr)[0], (unsigned long)(*arr)[1]};
+                }
+
+                auto pserialize = builder.CreateVector(params);
+                auto cargs      = familyline::CreateCommandInputA(builder, pserialize);
+
+                auto cval = CreateCommandInput(builder, cstr, cargs);
+
+                type_val  = familyline::InputType_cmd;
+                type_data = cval.Union();
+            },
+            [&](const SelectAction& a) {
+                std::vector<uint64_t> cobjs;
+                std::transform(
+                    a.objects.begin(), a.objects.end(), std::back_inserter(cobjs),
+                    [](auto v) { return v; });
+
+                auto ovec  = builder.CreateVector(cobjs);
+                auto oobjs = familyline::CreateSelectActionObjects(builder, ovec);
+                auto cval  = CreateSelectAction(builder, oobjs);
+
+                type_val  = familyline::InputType_sel;
+                type_data = cval.Union();
+            },
+            [&](const ObjectMove& a) {
+                auto cval = familyline::CreateObjectMove(builder, a.xPos, a.yPos);
+
+                type_val  = familyline::InputType_obj_move;
+                type_data = cval.Union();
+            },
+            [&](const CameraMove& a) {
+                auto cval = familyline::CreateCameraMove(builder, a.deltaX, a.deltaY, a.deltaZoom);
+
+                type_val  = familyline::InputType_cam_move;
+                type_data = cval.Union();
+            },
+            [&](const CameraRotate& a) {
+                auto cval = familyline::CreateCameraRotate(builder, a.radians);
+
+                type_val  = familyline::InputType_cam_rotate;
+                type_data = cval.Union();
+            },
+            [&](const CreateEntity& a) {
+                auto strtype = builder.CreateString(a.type);
+                auto cval    = familyline::CreateCreateEntity(builder, strtype, a.xPos, a.yPos);
+
+                type_val  = familyline::InputType_create;
+                type_data = cval.Union();
+            },
+            [&](const AddSelectAction& a) {
+
+            },
+            [&](const CreateSelectGroup& a) {}, [&](const SelectGroup& a) {},
+            [&](const AddSelectGroup& a) {}, [&](const RemoveSelectGroup& a) {}},
+        pit);
+}
+
+/**
  * You should pass this function as a callback to the player manager
  * `addListener` function
  */
@@ -132,70 +204,7 @@ bool InputRecorder::addAction(PlayerInputAction pia)
         familyline::InputType type_val;
         flatbuffers::Offset<void> type_data;
 
-        std::visit(
-            overload{
-                [&](const CommandInput& a) {
-                    auto cstr = builder.CreateString(a.commandName);
-
-                    std::vector<uint64_t> params;
-                    if (auto* objectID = std::get_if<object_id_t>(&a.param); objectID) {
-                        params = {*objectID};
-                    } else if (auto* arr = std::get_if<std::array<int, 2>>(&a.param); arr) {
-                        params = {(unsigned long)(*arr)[0], (unsigned long)(*arr)[1]};
-                    }
-
-                    auto pserialize = builder.CreateVector(params);
-                    auto cargs      = CreateCommandInputA(builder, pserialize);
-
-                    auto cval = CreateCommandInput(builder, cstr, cargs);
-
-                    type_val  = InputType_cmd;
-                    type_data = cval.Union();
-                },
-                [&](const SelectAction& a) {
-                    std::vector<uint64_t> cobjs;
-                    std::transform(
-                        a.objects.begin(), a.objects.end(), std::back_inserter(cobjs),
-                        [](auto v) { return v; });
-
-                    auto ovec  = builder.CreateVector(cobjs);
-                    auto oobjs = CreateSelectActionObjects(builder, ovec);
-                    auto cval  = CreateSelectAction(builder, oobjs);
-
-                    type_val  = InputType_sel;
-                    type_data = cval.Union();
-                },
-                [&](const ObjectMove& a) {
-                    auto cval = CreateObjectMove(builder, a.xPos, a.yPos);
-
-                    type_val  = InputType_obj_move;
-                    type_data = cval.Union();
-                },
-                [&](const CameraMove& a) {
-                    auto cval = CreateCameraMove(builder, a.deltaX, a.deltaY, a.deltaZoom);
-
-                    type_val  = InputType_cam_move;
-                    type_data = cval.Union();
-                },
-                [&](const CameraRotate& a) {
-                    auto cval = CreateCameraRotate(builder, a.radians);
-
-                    type_val  = InputType_cam_rotate;
-                    type_data = cval.Union();
-                },
-                [&](const CreateEntity& a) {
-                    auto strtype = builder.CreateString(a.type);
-                    auto cval    = CreateCreateEntity(builder, strtype, a.xPos, a.yPos);
-
-                    type_val  = InputType_create;
-                    type_data = cval.Union();
-                },
-                [&](const AddSelectAction& a) {
-
-                },
-                [&](const CreateSelectGroup& a) {}, [&](const SelectGroup& a) {},
-                [&](const AddSelectGroup& a) {}, [&](const RemoveSelectGroup& a) {}},
-            pia.type);
+        serializeInputAction(pia.type, type_val, type_data, builder);
 
         auto inputel = CreateInputElement(
             builder, pia.tick, pia.playercode, pia.timestamp, type_val, type_data);

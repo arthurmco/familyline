@@ -49,6 +49,7 @@ typedef unsigned int in_addr_t;
 #define HAS_UTSNAME __has_include(<sys/utsname.h)
 
 #include <variant>
+#include <chrono>
 #include <common/logic/player_actions.hpp>
 
 namespace familyline::net
@@ -120,7 +121,7 @@ struct Packet {
 
     std::variant<
         NStartRequest, NStartResponse, NLoadingRequest, NLoadingResponse, NGameStartRequest,
-        NGameStartResponse, std::monostate>
+        NGameStartResponse, InputRequest, InputResponse, std::monostate>
         message;
 };
 

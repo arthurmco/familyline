@@ -3,15 +3,17 @@
 #include <flatbuffers/flatbuffers.h>
 #include <fmt/format.h>
 
+#include "common/logic/input_recorder.hpp"
+
 #ifdef __linux__
 #include <bits/stdint-uintn.h>
 #include <sys/socket.h>
 #endif
 
-
 #include <algorithm>
 #include <chrono>
 #include <common/logger.hpp>
+#include <common/logic/input_reproducer.hpp>
 #include <common/net/game_packet_server.hpp>
 #include <common/net/server.hpp>
 #include <iterator>
@@ -24,13 +26,15 @@
 #include "network_generated.h"
 
 #ifdef WIN32
-#define errno  WSAGetLastError()
+#define errno WSAGetLastError()
 #endif
 
 using namespace familyline::net;
 
 Packet toNativePacket(const ::familyline::NetPacket* p)
 {
+    auto& log = familyline::LoggerService::getLogger();
+
     decltype(Packet::message) message = std::monostate{};
     switch (p->message_type()) {
         case familyline::Message_sreq: {
@@ -64,13 +68,34 @@ Packet toNativePacket(const ::familyline::NetPacket* p)
             break;
         }
         case familyline::Message_ireq: {
-            auto m  = p->message_as_ireq();
-            message = std::monostate{};  // Packet::NGameStartRequest{m->reserved()};
+            auto m = p->message_as_ireq();
+
+            auto itype = familyline::logic::deserializeInputAction(
+                m, [](const familyline::InputRequest* r) { return r->input_msg_type(); },
+                [&](const familyline::InputRequest* r, familyline::InputType type) {
+                    switch (type) {
+                        case familyline::InputType_cmd: return (void*)r->input_msg_as_cmd();
+                        case familyline::InputType_sel: return (void*)r->input_msg_as_sel();
+                        case familyline::InputType_obj_move:
+                            return (void*)r->input_msg_as_obj_move();
+                        case familyline::InputType_cam_move:
+                            return (void*)r->input_msg_as_cam_move();
+                        case familyline::InputType_cam_rotate:
+                            return (void*)r->input_msg_as_cam_rotate();
+                        case familyline::InputType_create: return (void*)r->input_msg_as_create();
+                        default:
+                            log->write(
+                                "game-packet-server", familyline::LogType::Fatal,
+                                "Read input message type (%02x)", type);
+                            return (void*)nullptr;
+                    }
+                });
+            message = Packet::InputRequest{m->client_from(), itype};
             break;
         }
         case familyline::Message_ires: {
             auto m  = p->message_as_ires();
-            message = std::monostate{};  // Packet::NGameStartResponse{m->reserved()};
+            message = Packet::InputResponse{m->client_from(), m->client_ack()};
             break;
         }
         case familyline::Message_NONE: {
@@ -148,6 +173,22 @@ flatbuffers::Offset<::familyline::NetPacket> GamePacketServer::toSerializedPacke
 
                 msg_type = familyline::Message_gres;
                 msg_data = cval.Union();
+            },
+            [&](const Packet::InputRequest& m) {
+                familyline::InputType type_val;
+                flatbuffers::Offset<void> type_data;
+                familyline::logic::serializeInputAction(m.input, type_val, type_data, b);
+
+                auto cval = familyline::CreateInputRequest(b, m.client_from, type_val, type_data);
+
+                msg_type = familyline::Message_ireq;
+                msg_data = cval.Union();
+            },
+            [&](const Packet::InputResponse& m) {
+                auto cval = familyline::CreateInputResponse(b, m.client_from, m.client_ack);
+
+                msg_type = familyline::Message_ires;
+                msg_data = cval.Union();
             }
 
         },
@@ -161,7 +202,7 @@ flatbuffers::Offset<::familyline::NetPacket> GamePacketServer::toSerializedPacke
 bool GamePacketServer::connect()
 {
     auto& log = LoggerService::getLogger();
-    
+
 #ifdef FLINE_NET_SUPPORT
 
     socket_ = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);

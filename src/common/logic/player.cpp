@@ -5,6 +5,10 @@
 using namespace familyline::logic;
 
 void Player::pushAction(PlayerInputType type) { this->pm_.pushAction(this->code_, type); }
+void Player::pushAction(PlayerInputType type, uint64_t tick)
+{
+    this->pm_.pushAction(this->code_, type, std::make_optional<unsigned int>(tick));
+}
 
 size_t Player::getTick() { return pm_.tick(); }
 
