@@ -66,6 +66,16 @@ public:
      * Send a message that will tell the server you are ready to start the game
      */
     void sendStartMessage();
+
+    /**
+     * Send an input message to the server (so it can tell other clients)
+     */
+    void sendInputMessage(logic::PlayerInputAction&);
+
+    /**
+     * The ID of our client
+     */
+    uint64_t id() { return id_; }
     
     /**
      * Wait for all clients to be connected, or until a timeout
@@ -89,7 +99,7 @@ public:
         this->receive_queue_ = c.receive_queue_;
         this->client_receive_queue_ = std::move(c.client_receive_queue_);
         this->dispatch_client_messages_.exchange(c.dispatch_client_messages_);
-        
+
         c.socket_ = -1;
     }
 
@@ -109,7 +119,7 @@ public:
         this->receive_queue_ = c.receive_queue_;
         this->client_receive_queue_ = std::move(c.client_receive_queue_);
         this->dispatch_client_messages_.exchange(c.dispatch_client_messages_);
-        
+
         c.socket_ = -1;
         return *this;
     }
@@ -122,10 +132,10 @@ private:
 
     SOCKET socket_;
     bool connected_ = false;
-    
+
     std::vector<CClientInfo> clients_;
     std::atomic<bool> dispatch_client_messages_ = false;
-    
+
     /**
      * The last message ID we sent
      *
@@ -158,7 +168,7 @@ private:
 
 
     Packet createPacket(uint64_t tick, uint64_t source, uint64_t dest,
-                        uint64_t id, decltype(Packet::message) message);    
+                        uint64_t id, decltype(Packet::message) message);
 
     /**
      * Enqueue a packet
@@ -172,7 +182,7 @@ private:
      * Returns true if we have a packet, false if we do not
      */
     bool pollPacketFor(uint64_t id, Packet& p);
-    
+
     std::mutex send_mutex_;
     std::queue<Packet> send_queue_;
     std::mutex receive_mutex_;

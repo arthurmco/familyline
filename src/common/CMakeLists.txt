@@ -40,6 +40,7 @@ add_library(
   "net/server.cpp"
   "net/game_packet_server.cpp"
   "net/network_client.cpp"
+  "net/net_player_sender.cpp"
   "net/network_player.cpp"
   )
 

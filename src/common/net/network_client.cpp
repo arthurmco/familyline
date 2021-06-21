@@ -108,8 +108,6 @@ void NetworkClient::update()
     recv_queue_mtx_.lock();
     Packet pkt;
     while (fn_in_(pkt)) {
-        auto& log = LoggerService::getLogger();
-
         recv_queue_.push(pkt);
     }
     recv_queue_mtx_.unlock();

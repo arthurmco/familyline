@@ -13,6 +13,8 @@
 #include <atomic>
 #include <chrono>
 #include <client/familyline.hpp>
+#include <common/net/net_player_sender.hpp>
+#include <common/net/network_player.hpp>
 #include <concepts>
 #include <cstdio>
 #include <cstdlib>
@@ -23,8 +25,6 @@
 #include <iterator>
 #include <memory>
 #include <thread>
-
-#include "common/net/network_player.hpp"
 
 using namespace familyline;
 using namespace familyline::logic;
@@ -143,17 +143,19 @@ int start_networked_game(
     bool all_ready             = false;
     std::atomic<bool> quitting = false;
 
+    std::atomic<int> watchdog = 0;
+
     std::thread netthread([&]() {
-        int iters = 0;
+        watchdog = 0;
         while (!quitting) {
-            iters++;
+            watchdog++;
 
             gps.update();
             std::for_each(clients.begin(), clients.end(), [&](NetworkClient& c) { c.update(); });
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
             // 1 min timeout
-            if (iters == 1000 * 30) {
+            if (watchdog == 1000 * 30) {
                 puts("TIMED OUT");
                 break;
             }
@@ -167,6 +169,7 @@ int start_networked_game(
     std::vector<uint64_t> loading_clients;
 
     gps.sendLoadingMessage(0);
+    watchdog = 0;
     /// TODO: load the map, assets, game class...
 
     /// TODO: fix an issue where two messages can come on the same TCP packet.
@@ -175,6 +178,7 @@ int start_networked_game(
     std::this_thread::sleep_for(std::chrono::seconds(1));
 
     gps.sendLoadingMessage(100);
+    watchdog = 0;
     printf("\t our game loaded! \n");
 
     all_loaded = waitFutures(
@@ -197,6 +201,7 @@ int start_networked_game(
 
     std::this_thread::sleep_for(std::chrono::seconds(1));
 
+    watchdog = 0;
     gps.sendStartMessage();
 
     all_ready = waitFutures(
@@ -211,26 +216,26 @@ int start_networked_game(
     }
 
     printf("\tstarting the game\n");
-    std::this_thread::sleep_for(std::chrono::seconds(2));
-
-    quitting = true;
-    netthread.join();
+    watchdog = 0;
+    std::this_thread::sleep_for(std::chrono::seconds(1));
 
     LoopRunner lr;
 
     int frames = 0;
 
     auto createMultiplayerSession_fn = [&](logic::Terrain& map, auto& local_player_info) {
-        std::map<unsigned int /*player_id*/, std::reference_wrapper<logic::Colony>> player_colony;
+        std::map<uint64_t /*player_id*/, std::reference_wrapper<logic::Colony>> player_colony;
 
         auto pm = std::make_unique<PlayerManager>();
         for (auto& c : clients) {
             pm->add(std::make_unique<NetworkPlayer>(*pm.get(), map, c), false);
         }
         auto hid = pm->add(
-            std::unique_ptr<Player>(new HumanPlayer{*pm.get(), map, local_player_info.name.c_str(), 0, true}));
+            std::unique_ptr<Player>(
+                new HumanPlayer{*pm.get(), map, local_player_info.name.c_str(), gps.id(), true}),
+            false);
         local_player_info.id = hid;
-        printf("\n%d\n", hid);
+        printf("\n%lx %lx\n", hid, gps.id());
 
         auto cm = std::make_unique<ColonyManager>();
         for (auto& c : clients) {
@@ -240,7 +245,7 @@ int start_networked_game(
             auto& alliance = cm->createAlliance("alliance");
             auto& colony   = cm->createColony(
                 *player, color, std::optional<std::reference_wrapper<Alliance>>{alliance});
-            
+
             player_colony.emplace(c.id(), std::reference_wrapper(colony));
         }
 
@@ -251,19 +256,28 @@ int start_networked_game(
             auto& alliance = cm->createAlliance("alliance");
             auto& colony   = cm->createColony(
                 *player, color, std::optional<std::reference_wrapper<Alliance>>{alliance});
-            
+
             player_colony.emplace(hid, std::reference_wrapper(colony));
         }
-        
+
         return PlayerSession{std::move(pm), std::move(cm), player_colony};
     };
 
-    Game* g = start_game(
+    watchdog = 0;
+    Game* g  = start_game(
         ginfo, lr, StartGameInfo{ASSET_FILE_DIR "terrain_test.flte", std::nullopt}, cdata,
         createMultiplayerSession_fn);
 
-    lr.load([&]() { return g->runLoop(); });
+    NetPlayerSender nps{*g->getPlayerManager(), gps, g->getHumanPlayerID()};
+
+    lr.load([&]() {
+        watchdog = 0;
+        return g->runLoop();
+    });
     run_game_loop(lr, frames);
+
+    quitting = true;
+    netthread.join();
 
     return 0;
 }

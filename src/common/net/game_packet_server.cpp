@@ -91,6 +91,7 @@ Packet toNativePacket(const ::familyline::NetPacket* p)
                     }
                 });
             message = Packet::InputRequest{m->client_from(), itype};
+            printf("aaa\n");
             break;
         }
         case familyline::Message_ires: {
@@ -260,9 +261,9 @@ void GamePacketServer::update()
 
     auto& log = LoggerService::getLogger();
 
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
     while (!send_queue_.empty()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(750));
-
+       
         send_mutex_.lock();
         auto packet = send_queue_.front();
         packet.id   = ++last_message_id_;
@@ -311,6 +312,7 @@ void GamePacketServer::update()
         log->write(
             "game-packet-server", LogType::Error, "Error while receiving a packet: %d (%s)", errno,
             strerror(errno));
+        return;
     }
 
     std::vector<uint8_t> vdata(data, data + r);
@@ -359,10 +361,12 @@ void GamePacketServer::enqueuePacket(Packet&& p)
 bool GamePacketServer::pollPacketFor(uint64_t id, Packet& p)
 {
 #ifdef FLINE_NET_SUPPORT
-
+    printf("%lx ??\t", id);
+    
     if (!client_receive_queue_.contains(id)) return false;
-
+    
     if (client_receive_queue_[id].empty()) return false;
+    printf("ok\n");
 
     p = client_receive_queue_[id].front();
     client_receive_queue_[id].pop();
@@ -459,7 +463,7 @@ GamePacketServer::waitForClientConnection(int timeout)
  * push_multi(v, 1, 2, 3);
  * ```
  *
- * will work like you did
+ * will be the same as if you did
  *
  * ```
  * v.push_back(1);
@@ -587,6 +591,16 @@ Packet GamePacketServer::createPacket(
     auto timestamp =
         duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch());
     return Packet{tick, source, dest, timestamp, id, message};
+}
+
+/**
+ * Send an input message to the server (so it can tell other clients)
+ */
+void GamePacketServer::sendInputMessage(logic::PlayerInputAction& a)
+{
+    auto pkt = createPacket(
+        a.tick, a.playercode, 0, a.timestamp, Packet::InputRequest{a.playercode, a.type});
+    this->enqueuePacket(std::move(pkt));
 }
 
 /**
