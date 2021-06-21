@@ -56,15 +56,16 @@ bool InputRecorder::createFile(std::string_view path, ObjectFactory* const of)
     if (f_) fclose(f_);
     flatbuffers::FlatBufferBuilder builder;
 
+    std::string npath  = std::string{path};
     if (std::filesystem::is_regular_file(path)) {
         auto oldpath = path;
-        path         = fmt::format("new-{}", path);
+        npath   = fmt::format("{}.new", path);
         LoggerService::getLogger()->write(
             "input-recorder", LogType::Error, "file '%s' already exists!, renaming to '%s'",
-            oldpath.data(), path.data());
+            oldpath.data(), npath.c_str());
     }
 
-    f_ = fopen(path.data(), "wb+");
+    f_ = fopen(npath.data(), "wb+");
     if (!f_) {
         LoggerService::getLogger()->write(
             "input-recorder", LogType::Error, "could not create input recorder file %s: %s (%d)",
@@ -101,8 +102,8 @@ bool InputRecorder::createFile(std::string_view path, ObjectFactory* const of)
     if (!f_) return false;
 
     LoggerService::getLogger()->write(
-        "input-recorder", LogType::Info, "creating input file %s", path.data());
-    path_ = path;
+        "input-recorder", LogType::Info, "creating input file %s", npath.data());
+    path_ = npath;
     return true;
 }
 

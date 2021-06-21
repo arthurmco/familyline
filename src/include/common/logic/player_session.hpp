@@ -17,7 +17,7 @@ struct PlayerSession {
     std::unique_ptr<logic::PlayerManager> players;
     std::unique_ptr<logic::ColonyManager> colonies;
 
-    std::map<unsigned int /*player_id*/, std::reference_wrapper<logic::Colony>> player_colony;
+    std::map<uint64_t /*player_id*/, std::reference_wrapper<logic::Colony>> player_colony;
 };
 
 }  // namespace familyline::logic

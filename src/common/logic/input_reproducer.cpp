@@ -317,14 +317,14 @@ bool InputReproducer::verifyObjectChecksums(ObjectFactory* const of)
  */
 PlayerSession InputReproducer::createPlayerSession(Terrain& terrain)
 {
-    std::map<unsigned int /*player_id*/, std::reference_wrapper<logic::Colony>> player_colony;
+    std::map<uint64_t /*player_id*/, std::reference_wrapper<logic::Colony>> player_colony;
     auto pm = std::make_unique<PlayerManager>();
     auto cm = std::make_unique<ColonyManager>();
 
     for (auto& p : pinfo_) {
-        int code = int(p.id);
+        auto code = p.id;
 
-        {
+        {            
             ReplayPlayer* rp = new ReplayPlayer{
                 *pm.get(),
                 terrain,

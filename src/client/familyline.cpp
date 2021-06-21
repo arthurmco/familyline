@@ -594,11 +594,11 @@ Game* start_game(
     auto& map = g->initMap(mapfile);
 
     std::string player_name = confdata.player.username;
-    auto pinfo              = InitPlayerInfo{player_name, -1};
+    auto pinfo              = InitPlayerInfo{player_name, uint64_t(-1)};
 
     std::unique_ptr<PlayerManager> pm;
     std::unique_ptr<ColonyManager> cm;
-    unsigned int human_player_id = 0;
+    uint64_t human_player_id = 0;
     PlayerSession session;
     g->initAssets();
     ObjectFactory* of = g->initObjectFactory();

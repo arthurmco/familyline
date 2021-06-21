@@ -86,7 +86,7 @@ class Player
 
 private:
     std::string name_;
-    int code_;
+    uint64_t code_;
     PlayerManager& pm_;
 
     /**
@@ -149,12 +149,12 @@ protected:
     bool isTickValid();
 
 public:
-    Player(PlayerManager& pm, const Terrain& terr, const char* name, int code)
+    Player(PlayerManager& pm, const Terrain& terr, const char* name, uint64_t code)
         : pm_(pm), terr_(terr), name_(name), code_(code)
     {
     }
 
-    unsigned int getCode() { return (unsigned)code_; }
+    uint64_t getCode() { return code_; }
 
     std::optional<std::string> getNextBuilding() const { return nextBuilding_; }
     void popNextBuilding() { nextBuilding_ = std::optional<std::string>(); }

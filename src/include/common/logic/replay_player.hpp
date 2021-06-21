@@ -7,6 +7,7 @@
  * (C) 2020 Arthur Mendes
  */
 
+#include <bits/stdint-uintn.h>
 #include <queue>
 
 #include <common/logic/input_reproducer.hpp>
@@ -30,7 +31,7 @@ private:
     
 public:
     ReplayPlayer(
-        PlayerManager& pm, const Terrain& terr, const char* name, int code, InputReproducer& ir,
+        PlayerManager& pm, const Terrain& terr, const char* name, uint64_t code, InputReproducer& ir,
         std::function<void(ReplayPlayer*)> end_callback)
         : Player(pm, terr, name, code), ir_(ir), end_callback_(end_callback)
     {

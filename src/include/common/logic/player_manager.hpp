@@ -6,8 +6,8 @@
  * Copyright (C) 2020 Arthur M.
  */
 
-#include <common/logic/pathfinder.hpp>
 #include <common/logic/lifecycle_manager.hpp>
+#include <common/logic/pathfinder.hpp>
 #include <common/logic/player.hpp>
 #include <common/logic/player_actions.hpp>
 #include <deque>
@@ -19,12 +19,18 @@
 namespace familyline::logic
 {
 struct PlayerInfo {
-    int id;
+    uint64_t id;
     std::unique_ptr<Player> player;
 
-    PlayerInfo(int id, std::unique_ptr<Player> player) : id(id), player(std::move(player)) {}
+    PlayerInfo(uint64_t id, std::unique_ptr<Player> player) : id(id), player(std::move(player)) {}
 };
 
+/**
+ * The player listener handler
+ *
+ * You return true if you used this message, false if you did not
+ * used
+ */
 using PlayerListenerHandler = std::function<bool(PlayerInputAction)>;
 
 struct PlayerHandlerInfo {
@@ -61,11 +67,11 @@ private:
 
     /// The difference between the tick we are executing and the tick that the message pushed in
     /// this tick will be run by default
-    size_t tick_delta_ = 2;
+    size_t tick_delta_ = 10;
 
     void processAction(const PlayerInputAction& a, ObjectManager& om);
 
-    std::optional<Player*> getPlayerFromID(int id);
+    std::optional<Player*> getPlayerFromID(uint64_t id);
 
 public:
     ObjectLifecycleManager* olm = nullptr;
@@ -80,14 +86,14 @@ public:
      * Callback to a function that allows us to
      * add an object to a colony
      */
-    std::function<void(std::shared_ptr<GameObject>, unsigned /*player_id*/)> colony_add_callback;
+    std::function<void(std::shared_ptr<GameObject>, uint64_t /*player_id*/)> colony_add_callback;
 
     /**
      * Add a player here
      *
      * Return its generated ID
      */
-    int add(std::unique_ptr<Player> p, bool allocate_id = true);
+    uint64_t add(std::unique_ptr<Player> p, bool allocate_id = true);
 
     /**
      * Get a player from the player manager
@@ -96,7 +102,7 @@ public:
      * Remember that this object is owned by the player manager.
      * In C++, you are the borrow checker.
      */
-    std::optional<Player*> get(int id);
+    std::optional<Player*> get(uint64_t id);
 
     /**
      * Gets a multimap of ID=>playername, so you can easily discover the
@@ -111,7 +117,7 @@ public:
      * We can push an action to be ran in a certain tick
      */
     void pushAction(
-        unsigned int id, PlayerInputType type, std::optional<unsigned int> tick = std::nullopt);
+        uint64_t id, PlayerInputType type, std::optional<unsigned int> tick = std::nullopt);
 
     /**
      * Adds a listener to the player input action event listeners

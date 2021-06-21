@@ -56,7 +56,7 @@ public:
 
     HumanPlayer(
         familyline::logic::PlayerManager& pm, const familyline::logic::Terrain& t, const char* name,
-        int code, bool can_control_);
+        uint64_t code, bool can_control_);
 
     /**
      * Generate the input actions.

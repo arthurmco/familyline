@@ -5,9 +5,9 @@
 #include <chrono>
 #include <cinttypes>
 #include <common/logger.hpp>
-#include <common/logic/object_path_manager.hpp>
 #include <common/logic/colony.hpp>
 #include <common/logic/logic_service.hpp>
+#include <common/logic/object_path_manager.hpp>
 #include <common/logic/player_manager.hpp>
 
 /**
@@ -25,7 +25,7 @@ using namespace familyline::logic;
  *
  * Return its generated ID
  */
-int PlayerManager::add(std::unique_ptr<Player> p, bool allocate_id)
+uint64_t PlayerManager::add(std::unique_ptr<Player> p, bool allocate_id)
 {
     auto id = allocate_id ? (uintptr_t)p.get() / 1 + (((uintptr_t)players_.size() * 16384))
                           : p->getCode();
@@ -43,9 +43,9 @@ int PlayerManager::add(std::unique_ptr<Player> p, bool allocate_id)
  * Remember that this object is owned by the player manager.
  * In C++, you are the borrow checker.
  */
-std::optional<Player*> PlayerManager::get(int id) { return this->getPlayerFromID(id); }
+std::optional<Player*> PlayerManager::get(uint64_t id) { return this->getPlayerFromID(id); }
 
-std::optional<Player*> PlayerManager::getPlayerFromID(int id)
+std::optional<Player*> PlayerManager::getPlayerFromID(uint64_t id)
 {
     auto p =
         std::find_if(players_.begin(), players_.end(), [&](PlayerInfo& pi) { return pi.id == id; });
@@ -71,8 +71,7 @@ void PlayerManager::iterate(PlayerCallback c)
  *
  * We can push an action to be ran in a certain tick
  */
-void PlayerManager::pushAction(
-    unsigned int id, PlayerInputType type, std::optional<unsigned int> tick)
+void PlayerManager::pushAction(uint64_t id, PlayerInputType type, std::optional<unsigned int> tick)
 {
     auto duration   = std::chrono::system_clock::now().time_since_epoch();
     uint64_t micros = std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
@@ -85,9 +84,12 @@ void PlayerManager::pushAction(
         id, tick_, runtick);
 
     if (tick) {
-        assert(*tick > tick_);
+        log->write(
+            "player-manager", LogType::Debug, "tick %d, current tick %d",
+            *tick, tick_);
+        assert(*tick >= tick_);
     }
-
+    
     PlayerInputAction a;
     a.playercode = id;
     a.tick       = runtick;
@@ -95,15 +97,16 @@ void PlayerManager::pushAction(
     a.type       = type;
 
     actions_.push_back(a);
-    
-    std::sort(actions_.begin(), actions_.end(), [&](const PlayerInputAction& a, const PlayerInputAction& b){
-        // return a < b
 
-        if (a.tick != b.tick)
-            return a.tick < b.tick;
+    std::sort(
+        actions_.begin(), actions_.end(),
+        [&](const PlayerInputAction& a, const PlayerInputAction& b) {
+            // return a < b
 
-        return a.timestamp < b.timestamp;
-    });
+            if (a.tick != b.tick) return a.tick < b.tick;
+
+            return a.timestamp < b.timestamp;
+        });
 }
 
 auto getValidSelections(const std::vector<std::weak_ptr<GameObject>>& selections)
@@ -146,13 +149,9 @@ int PlayerManager::addListener(PlayerListenerHandler h)
  */
 void PlayerManager::removeListener(int id)
 {
-    auto it = std::erase_if(player_input_listeners_,
-                            [id](const PlayerHandlerInfo& i)
-                                {return i.id == id; }
-        );
-    
+    auto it = std::erase_if(
+        player_input_listeners_, [id](const PlayerHandlerInfo& i) { return i.id == id; });
 }
-
 
 /// This will allow us to use std::visit with multiple variants at once, a thing
 /// that should be part of C++20.
@@ -318,13 +317,11 @@ void PlayerManager::processAction(const PlayerInputAction& pia, ObjectManager& o
                     if (s->getColonyComponent().has_value() &&
                         s->getColonyComponent()->owner.has_value() &&
                         s->getColonyComponent()->owner->get().isOfPlayer(*(*player))) {
-
                         auto& pm = LogicService::getPathManager();
                         pm->startPathing(*s.get(), glm::vec2(a.xPos, a.yPos));
 
                         log->write(
                             "human-player", LogType::Debug, "moved to %.2fx%.2f", a.xPos, a.yPos);
-                        
                     }
                 }
             },
@@ -449,9 +446,8 @@ void PlayerManager::run(GameContext& gctx)
 
     while (!actions_.empty()) {
         PlayerInputAction& a = actions_.front();
-        if (a.tick > tick_)
-            break;
-        
+        if (a.tick > tick_) break;
+
         this->processAction(a, *gctx.om);
 
         for (auto h : player_input_listeners_) {

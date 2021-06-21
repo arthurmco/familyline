@@ -22,7 +22,7 @@ namespace familyline
  */
 struct InitPlayerInfo {
     std::string name;
-    int id = -1;  /// used only for storing the ID from the player manager
+    uint64_t id = -1;  /// used only for storing the ID from the player manager
 };
 
 /**

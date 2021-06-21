@@ -64,7 +64,7 @@ logic::Terrain& Game::initMap(std::string_view path)
  */
 void Game::initPlayers(
     std::unique_ptr<logic::PlayerManager> pm, std::unique_ptr<logic::ColonyManager> cm,
-    decltype(colonies_) player_colony_map, int human_id)
+    decltype(colonies_) player_colony_map, uint64_t human_id)
 {
     auto& log = LoggerService::getLogger();
     log->write("game", LogType::Info, "configuring player manager");
@@ -76,7 +76,7 @@ void Game::initPlayers(
     };
     colonies_ = player_colony_map;
 
-    pm_->colony_add_callback = [&](std::shared_ptr<GameObject> o, unsigned player_id) {
+    pm_->colony_add_callback = [&](std::shared_ptr<GameObject> o, uint64_t player_id) {
         auto& col = o->getColonyComponent();
         if (col.has_value()) {
             col->owner = std::make_optional(colonies_.at(player_id));
@@ -86,7 +86,7 @@ void Game::initPlayers(
         }
     };
 
-    if (human_id != -1) {
+    if (human_id != uint64_t(-1)) {
         HumanPlayer* hp = dynamic_cast<HumanPlayer*>(*pm_->get(human_id));
         if (hp)
             hp->setCamera(camera_.get());
@@ -123,7 +123,7 @@ logic::ObjectFactory* Game::initObjectFactory()
 {
     auto& of = LogicService::getObjectFactory();
     factory_objects_.clear();
-    
+
     factory_objects_.push_back(std::make_unique<WatchTower>());
     factory_objects_.push_back(std::make_unique<Tent>());
 
@@ -162,7 +162,7 @@ auto pointlight = std::make_unique<Light>(
 auto pointlight2 = std::make_unique<Light>(
     PointLightType{glm::vec3(50.0, 10.0, 10.0)}, 9.8f, glm::vec3(0.8, 0.2, 0.0), "redishlight");
 
-void Game::initLoopData(int human_id)
+void Game::initLoopData(uint64_t human_id)
 {
     auto& log = LoggerService::getLogger();
     log->write("game", LogType::Info, "initializing other data needed by the game");
@@ -194,6 +194,8 @@ void Game::initLoopData(int human_id)
         if (hp) {
             hp->SetPicker(ip_.get());
             hp->setPreviewer(pr_.get());
+        } else {
+            log->write("game", LogType::Warning, "human player id %lx not found", human_id);
         }
     }
 
@@ -397,14 +399,14 @@ void Game::runLogic()
 
     LogicService::getAttackManager()->processAttacks(*olm_.get());
     LogicService::getPathManager()->update(*om_.get());
-    
+
     bool objupdate = objrend_->willUpdate();
     if (objupdate) {
         objrend_->update();
         auto [w, h] = terrain_->getSize();
 
     }
-    
+
     LogicService::getDebugDrawer()->update();
 }
 
@@ -488,7 +490,7 @@ void Game::showHumanPlayerInfo(logic::Player* hp)
     if (selected) {
         char s[150] = {};
         auto& acomp = selected->getAttackComponent();
- 
+
         if (acomp) {
             sprintf(
                 s, "Selected object: '%s' (%4f/%4d)", selected->getName().c_str(),
