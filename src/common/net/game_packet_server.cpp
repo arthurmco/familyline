@@ -261,16 +261,15 @@ void GamePacketServer::update()
 
     auto& log = LoggerService::getLogger();
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    std::this_thread::sleep_for(std::chrono::nanoseconds(10));
     while (!send_queue_.empty()) {
-       
         send_mutex_.lock();
         auto packet = send_queue_.front();
         packet.id   = ++last_message_id_;
         log->write(
             "game-packet-server", LogType::Info,
-            "sending package (id %llu, from %llu, to %llu, timestamp %llu..., type %d )", packet.id,
-            packet.source_client, packet.dest_client, packet.timestamp, packet.message.index());
+            "sending package (id %llu, from %llu, to %llu, tick %llu, timestamp %llu..., type %d )", packet.id,
+            packet.source_client, packet.dest_client, packet.tick, packet.timestamp, packet.message.index());
 
         auto byte_data = this->createMessage(packet);
 
@@ -294,7 +293,6 @@ void GamePacketServer::update()
         log->write("game-packet-server", LogType::Info, "data sent! (%zu)", byte_data.size());
     }
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(250));
     uint8_t data[1024] = {};
     auto r             = recv(socket_, data, 1023, MSG_DONTWAIT);
     if (r == 0) {
@@ -327,8 +325,8 @@ void GamePacketServer::update()
     for (auto& pkt : pkts) {
         log->write(
             "game-packet-server", LogType::Info,
-            "received packet (id %llu, from %llu, to %llu, timestamp %llu..., type %d )", pkt.id,
-            pkt.source_client, pkt.dest_client, pkt.timestamp, pkt.message.index());
+            "received packet (id %llu, from %llu, to %llu, tick %llu, timestamp %llu..., type %d )", pkt.id,
+            pkt.source_client, pkt.dest_client, pkt.tick, pkt.timestamp, pkt.message.index());
         receive_mutex_.lock();
         if (dispatch_client_messages_ && pkt.source_client != 0) {
             client_receive_queue_[pkt.source_client].push(pkt);
@@ -361,12 +359,9 @@ void GamePacketServer::enqueuePacket(Packet&& p)
 bool GamePacketServer::pollPacketFor(uint64_t id, Packet& p)
 {
 #ifdef FLINE_NET_SUPPORT
-    printf("%lx ??\t", id);
-    
     if (!client_receive_queue_.contains(id)) return false;
-    
+
     if (client_receive_queue_[id].empty()) return false;
-    printf("ok\n");
 
     p = client_receive_queue_[id].front();
     client_receive_queue_[id].pop();
@@ -557,7 +552,12 @@ std::vector<Packet> GamePacketServer::decodeMessage(std::vector<uint8_t> data)
     assert(packetdata[0] == 'F');
 
     if (pkt) {
-        res.push_back(toNativePacket(pkt));
+        auto verifier = flatbuffers::Verifier{packetdata.data()+16, size};
+        if (!VerifyNetPacketBuffer(verifier)) {
+            log->write("game-packet-server", LogType::Error, "packet verifier failed!");
+        } else {
+            res.push_back(toNativePacket(pkt));
+        }
     } else {
         log->write(
             "game-packet-server", LogType::Error, "flatbuffer conversion returned a null pointer!");

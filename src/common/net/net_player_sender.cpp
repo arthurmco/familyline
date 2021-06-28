@@ -5,7 +5,6 @@
 using namespace familyline::net;
 using namespace familyline::logic;
 
-
 bool NetPlayerSender::listenPlayer(logic::PlayerInputAction a)
 {
     if (a.playercode != human_id_)
