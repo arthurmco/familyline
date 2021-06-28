@@ -25,7 +25,8 @@ public:
         : human_id_(human_id), gps_(gps), pm_(pm)
     {
         listener_id_ =
-            pm.addListener(std::bind(&NetPlayerSender::listenPlayer, this, std::placeholders::_1));
+            pm.addListener(std::bind(&NetPlayerSender::listenPlayer, this, std::placeholders::_1),
+                           logic::PlayerHandlerType::AddHandler);
     }
 
     ~NetPlayerSender() { pm_.removeListener(listener_id_); }

@@ -80,13 +80,11 @@ void PlayerManager::pushAction(uint64_t id, PlayerInputType type, std::optional<
     auto runtick = tick ? *tick : tick_ + tick_delta_;
 
     log->write(
-        "player-manager", LogType::Info, "push action of player %08x on tick %d to be run on %d",
+        "player-manager", LogType::Info, "push action of player %16x on tick %d to be run on %d",
         id, tick_, runtick);
 
     if (tick) {
-        log->write(
-            "player-manager", LogType::Debug, "tick %d, current tick %d",
-            *tick, tick_);
+        fprintf(stderr, "%d >= %zu\n", *tick, tick_);
         assert(*tick >= tick_);
     }
     
@@ -98,6 +96,11 @@ void PlayerManager::pushAction(uint64_t id, PlayerInputType type, std::optional<
 
     actions_.push_back(a);
 
+    
+    for (auto h : player_input_listeners_add_) {
+        h.handler(a);
+    }
+    
     std::sort(
         actions_.begin(), actions_.end(),
         [&](const PlayerInputAction& a, const PlayerInputAction& b) {
@@ -133,14 +136,27 @@ auto getValidSelections(const std::vector<std::weak_ptr<GameObject>>& selections
  * Adds a listener to the player input action event listeners
  *
  * Returns the ID
+ *
+ * Note that, if you add a listener for when an action add event, they might not be
+ * in order. The action run event is guaranteed to be in order
  */
-int PlayerManager::addListener(PlayerListenerHandler h)
+int PlayerManager::addListener(PlayerListenerHandler h, PlayerHandlerType type)
 {
+    static int id = 1;    
+    
     PlayerHandlerInfo phi;
-    phi.id      = player_input_listeners_.size() + 1;
+    phi.id      = id++;
     phi.handler = h;
 
-    player_input_listeners_.push_back(phi);
+    switch (type) {
+    case PlayerHandlerType::AddHandler:
+        player_input_listeners_add_.push_back(phi);
+        break;
+    case PlayerHandlerType::RunHandler:
+        player_input_listeners_run_.push_back(phi);
+        break;
+    }
+
     return phi.id;
 }
 
@@ -150,7 +166,10 @@ int PlayerManager::addListener(PlayerListenerHandler h)
 void PlayerManager::removeListener(int id)
 {
     auto it = std::erase_if(
-        player_input_listeners_, [id](const PlayerHandlerInfo& i) { return i.id == id; });
+        player_input_listeners_add_, [id](const PlayerHandlerInfo& i) { return i.id == id; });
+
+    auto _it = std::erase_if(
+        player_input_listeners_run_, [id](const PlayerHandlerInfo& i) { return i.id == id; });
 }
 
 /// This will allow us to use std::visit with multiple variants at once, a thing
@@ -450,7 +469,7 @@ void PlayerManager::run(GameContext& gctx)
 
         this->processAction(a, *gctx.om);
 
-        for (auto h : player_input_listeners_) {
+        for (auto h : player_input_listeners_run_) {
             h.handler(a);
         }
 

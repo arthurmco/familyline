@@ -25,6 +25,8 @@ struct PlayerInfo {
     PlayerInfo(uint64_t id, std::unique_ptr<Player> player) : id(id), player(std::move(player)) {}
 };
 
+enum PlayerHandlerType { AddHandler, RunHandler };
+
 /**
  * The player listener handler
  *
@@ -60,14 +62,18 @@ private:
      */
     std::deque<PlayerInputAction> actions_;
 
-    std::vector<PlayerHandlerInfo> player_input_listeners_;
+    /// Handlers that are executed when you add an event
+    std::vector<PlayerHandlerInfo> player_input_listeners_add_;
+
+    /// Handlers that are executed when you run an event
+    std::vector<PlayerHandlerInfo> player_input_listeners_run_;
 
     /// The tick we are executing right now
     size_t tick_ = 0;
 
     /// The difference between the tick we are executing and the tick that the message pushed in
     /// this tick will be run by default
-    size_t tick_delta_ = 10;
+    size_t tick_delta_ = 6;
 
     void processAction(const PlayerInputAction& a, ObjectManager& om);
 
@@ -123,8 +129,11 @@ public:
      * Adds a listener to the player input action event listeners
      *
      * Returns the ID
+     *
+     * Note that, if you add a listener for when an action add event, they might not be
+     * in order. The action run event is guaranteed to be in order
      */
-    int addListener(PlayerListenerHandler h);
+    int addListener(PlayerListenerHandler h, PlayerHandlerType type = PlayerHandlerType::RunHandler);
 
     /**
      * Removes the player input action event listener

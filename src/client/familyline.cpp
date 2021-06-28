@@ -152,7 +152,6 @@ int start_networked_game(
 
             gps.update();
             std::for_each(clients.begin(), clients.end(), [&](NetworkClient& c) { c.update(); });
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
             // 1 min timeout
             if (watchdog == 1000 * 30) {
@@ -199,28 +198,16 @@ int start_networked_game(
         [](NetworkClient& c) { return std::make_pair(c.id(), c.waitReadyToStart()); });
     std::vector<uint64_t> start_clients;
 
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    std::this_thread::sleep_for(std::chrono::milliseconds(800));
 
     watchdog = 0;
     gps.sendStartMessage();
 
-    all_ready = waitFutures(
-        start_promises, start_clients, [&](auto& res) { return res.value_or(false) == true; },
-        quitting);
-
-    if (!all_ready) {
-        quitting = true;
-        printf("\tanother client failed to start the game, exiting\n");
-        netthread.join();
-        return 1;
-    }
-
-    printf("\tstarting the game\n");
-    watchdog = 0;
     std::this_thread::sleep_for(std::chrono::seconds(1));
 
     LoopRunner lr;
 
+    watchdog = 0;
     int frames = 0;
 
     auto createMultiplayerSession_fn = [&](logic::Terrain& map, auto& local_player_info) {
@@ -270,8 +257,22 @@ int start_networked_game(
 
     NetPlayerSender nps{*g->getPlayerManager(), gps, g->getHumanPlayerID()};
 
+    all_ready = waitFutures(
+        start_promises, start_clients, [&](auto& res) { return res.value_or(false) == true; },
+        quitting);
+
+    if (!all_ready) {
+        quitting = true;
+        printf("\tanother client failed to start the game, exiting\n");
+        netthread.join();
+        return 1;
+    }
+
+    printf("\tstarting the game\n");
+    watchdog = 0;
+
     lr.load([&]() {
-        watchdog = 0;
+        watchdog = 0;        
         return g->runLoop();
     });
     run_game_loop(lr, frames);
