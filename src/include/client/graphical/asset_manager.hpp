@@ -6,9 +6,10 @@
 
 #include <unordered_map>
 
-#include "asset_file.hpp"
-#include "asset_object.hpp"
-#include "exceptions.hpp"
+#include <client/graphical/asset_file.hpp>
+#include <client/graphical/asset_object.hpp>
+#include <client/graphical/meshopener/MeshOpener.hpp>
+#include <client/graphical/exceptions.hpp>
 
 #ifndef ASSETMANAGER_H
 #define ASSETMANAGER_H
@@ -53,11 +54,18 @@ class AssetManager
 private:
     std::unordered_map<std::string, Asset> _assets;
 
+    std::vector<MeshOpener*> openers;
+    
     Asset processAsset(AssetItem&);
 
 public:
     AssetManager();
 
+    ~AssetManager() {
+        for (auto* o : openers)
+            delete o;
+    }
+    
     /**
      * Load the asset list file
      */

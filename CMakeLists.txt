@@ -14,6 +14,8 @@ option(FLINE_USE_RELATIVE_PATH
 option(FLINE_BUILD_TESTS "Set if you want to enable unit tests, unset if you don't" ON)
 
 option(FLINE_DO_CHECK_ASAN "Enable address sanitizer" ON)
+option(FLINE_DO_CHECK_UBSAN "Enable undefined behaviour sanitizer" ON)
+
 cmake_dependent_option(FLINE_SET_COVERAGE "Enable coverage testing. Only enabled when tests are enabled" OFF,
   "FLINE_BUILD_TESTS" OFF)
 
@@ -181,6 +183,15 @@ if (FLINE_DO_CHECK_ASAN)
     target_link_libraries(familyline "-fsanitize=address")
     target_compile_options(familyline PUBLIC "-fno-omit-frame-pointer")
     target_link_libraries(familyline "-fno-omit-frame-pointer")
+  endif()
+endif()
+
+if (FLINE_DO_CHECK_UBSAN)
+  if (WIN32)
+    message("No support for windows + undefined behavior sanitizer yet")
+  else() 
+    target_compile_options(familyline PUBLIC "-fsanitize=undefined")
+    target_link_libraries(familyline "-fsanitize=undefined")
   endif()
 endif()
 

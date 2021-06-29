@@ -25,6 +25,10 @@ void MeshOpener::RegisterExtension(const char* extension, MeshOpener* opener)
 void MeshOpener::UnregisterExtension(const char* extension)
 {
     auto& log = LoggerService::getLogger();
+
+    if (MeshOpener::openers.empty())
+        return;
+    
     MeshOpener::openers[std::string{extension}].ref--;
 
     if (MeshOpener::openers[std::string{extension}].ref == 0)

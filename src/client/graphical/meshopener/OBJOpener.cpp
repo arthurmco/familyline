@@ -41,20 +41,20 @@ struct VertexList {
     // Each element in the face index is a 3-element array
     std::vector<FaceIndex> indices;
 
-    char* mtlname = nullptr;
+    std::string mtlname = "";
 };
 
 // The vertex group, aka the mesh
 // Represents a mesh group in the file (thie 'g' marker)
 struct VertexGroup {
     // The vertex list name
-    const char* name;
+    std::string name;
     bool complete = false;
 
     bool hasTexture = false, hasNormal = false;
     std::vector<VertexList> vertices;
 
-    VertexGroup(const char* name) { this->name = name; }
+    VertexGroup(std::string name) { this->name = name; }
 };
 
 std::vector<Mesh*> OBJOpener::OpenSpecialized(const char* file)
@@ -171,7 +171,10 @@ std::vector<Mesh*> OBJOpener::OpenSpecialized(const char* file)
             char* gname = new char[strlen(l)];
 
             auto i = sscanf(l, "%c %s", &gs, gname);
-            if (i < 2) continue;
+            if (i < 2) {
+                delete[] gname;
+                continue;
+            }
 
             verts.push_back(VertexGroup{gname});
             current_group = &verts.back();
@@ -182,17 +185,18 @@ std::vector<Mesh*> OBJOpener::OpenSpecialized(const char* file)
 
             log->write("meshopener::obj", LogType::Debug, "found group '%s'", gname);
 
+            delete[] gname;            
             continue;
         }
 
         // Material
         if (l[0] == 'u' && l[1] == 's' && l[2] == 'e') {
             if (!strncmp(l, "usemtl", 6)) {
-                char* mtlname = strdup(&l[7]);
+                std::string mtlname = std::string{&l[7]};
 
                 log->write(
                     "meshopener::obj", LogType::Debug, "group %s: found material '%s'",
-                    current_group->name, mtlname);
+                    current_group->name.c_str(), mtlname.c_str());
                 // switch vertex list
                 current_group->vertices.push_back(VertexList{});
                 current_vert          = &current_group->vertices.back();
@@ -254,7 +258,7 @@ std::vector<Mesh*> OBJOpener::OpenSpecialized(const char* file)
         if (!vg.hasNormal && !vg.hasTexture) continue;  // No normal and no texture? Unsupported
         log->write(
             "meshopener::obj", LogType::Debug, "mesh %s, %zu vertex lists, normals=%s, textures=%s",
-            vg.name, vg.vertices.size(), (vg.hasNormal ? "true" : "false"),
+            vg.name.c_str(), vg.vertices.size(), (vg.hasNormal ? "true" : "false"),
             (vg.hasTexture ? "true" : "false"));
 
         VertexDataGroup vdlist;
@@ -332,8 +336,8 @@ std::vector<Mesh*> OBJOpener::OpenSpecialized(const char* file)
 
                 if (vg.hasTexture) vdata.texcoords.push_back(texcoords[uvt]);
 
-                if (vl.mtlname && !mtl) {
-                    mtl = GFXService::getMaterialManager()->getMaterial(vl.mtlname);
+                if (vl.mtlname != "" && !mtl) {
+                    mtl = GFXService::getMaterialManager()->getMaterial(vl.mtlname.c_str());
                 }
             }
 
@@ -348,7 +352,7 @@ std::vector<Mesh*> OBJOpener::OpenSpecialized(const char* file)
             } else {
                 log->write(
                     "meshopener::obj", LogType::Warning, "cannot load material %s for %s",
-                    vl.mtlname, vg.name);
+                    vl.mtlname.c_str(), vg.name.c_str());
 
                 VertexInfo vi(idx, -1, fshader, VertexRenderStyle::Triangles);
                 vi.hasTexCoords = vg.hasTexture;
@@ -362,7 +366,7 @@ std::vector<Mesh*> OBJOpener::OpenSpecialized(const char* file)
             idx++;
         }
 
-        auto mesh = new Mesh{vg.name, new StaticAnimator{vdlist}, vinfo};
+        auto mesh = new Mesh{vg.name.c_str(), new StaticAnimator{vdlist}, vinfo};
         mesh_ret.push_back(mesh);
     }
 

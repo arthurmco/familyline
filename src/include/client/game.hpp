@@ -29,8 +29,8 @@
 #include <client/graphical/window.hpp>
 #include <common/logic/BuildQueue.hpp>
 #include <common/logic/GameActionManager.hpp>
-#include <common/logic/ObjectPathManager.hpp>
-#include <common/logic/PathFinder.hpp>
+#include <common/logic/object_path_manager.hpp>
+#include <common/logic/pathfinder.hpp>
 #include <common/logic/colony_manager.hpp>
 #include <common/logic/debug_drawer.hpp>
 #include <common/logic/lifecycle_manager.hpp>
@@ -94,9 +94,9 @@ public:
      */
     void initPlayers(
         std::unique_ptr<logic::PlayerManager> pm, std::unique_ptr<logic::ColonyManager> cm,
-        std::map<unsigned int /*player_id*/, std::reference_wrapper<logic::Colony>>
+        std::map<uint64_t /*player_id*/, std::reference_wrapper<logic::Colony>>
             player_colony_map,
-        int human_id);
+        uint64_t human_id);
 
 
     void initRecorder(std::unique_ptr<logic::InputRecorder> ir) { ir_ = std::move(ir); }
@@ -127,7 +127,7 @@ public:
      */
     void initObjectManager();
 
-    void initLoopData(int human_id);
+    void initLoopData(uint64_t human_id);
 
     bool runLoop();
 
@@ -136,25 +136,30 @@ public:
 
     logic::ObjectManager* getObjectManager() const;
 
-    /// The ID of the human player.
-    /// Used to show what player to show selections, camera coordinates...
-    int human_id_ = 0;
+    logic::PlayerManager* getPlayerManager() { return pm_.get(); }
+    uint64_t getHumanPlayerID() { return human_id_; }
+    
     
 private:
     ///////////////////// logic
+
+    /// The ID of the human player.
+    /// Used to show what player to show selections, camera coordinates...
+    uint64_t human_id_ = 0;
 
     std::unique_ptr<logic::TerrainFile> terrFile_;
     std::unique_ptr<logic::Terrain> terrain_;
 
     std::unique_ptr<logic::PlayerManager> pm_;
 
-    std::map<unsigned int /*player_id*/, std::reference_wrapper<logic::Colony>> colonies_;
+    std::vector<std::unique_ptr<logic::GameObject>> factory_objects_;
+    
+    std::map<uint64_t /*player_id*/, std::reference_wrapper<logic::Colony>> colonies_;
 
     std::unique_ptr<logic::ObjectManager> om_;
     std::unique_ptr<PreviewRenderer> pr_;
     std::unique_ptr<logic::ObjectLifecycleManager> olm_;
     std::unique_ptr<logic::ColonyManager> cm_;
-    std::unique_ptr<logic::PathFinder> pathf_;
 
     // might not be used at all, but it needs to have the same lifetime
     // as the game, so inputs can be captured.

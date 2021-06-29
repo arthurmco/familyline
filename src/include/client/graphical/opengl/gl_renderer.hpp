@@ -54,6 +54,8 @@ private:
     ShaderProgram* _sForward = nullptr;
     ShaderProgram* _sLines   = nullptr;
 
+    std::unique_ptr<TerrainRenderer> terrain_renderer_;
+
 public:
     GLRenderer();
 

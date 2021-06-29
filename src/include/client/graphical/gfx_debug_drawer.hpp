@@ -18,31 +18,6 @@ struct VHData {
     uint64_t last_tick;
 };
 
-
-/**
- * A dummy debug drawer
- * 
- * It does not render anywhere
- */
-class DummyDebugDrawer : public familyline::logic::DebugDrawer
-{
-public:
-    DummyDebugDrawer(const familyline::logic::Terrain &terr)
-        : DebugDrawer(terr) {}
-
-    virtual void drawLine(glm::vec3 start, glm::vec3 end, glm::vec4 color) {}
-    virtual void drawSquare(
-        glm::vec3 start, glm::vec3 end, glm::vec4 foreground, glm::vec4 background) {}
-    virtual void drawCircle(
-        glm::vec3 point, glm::vec3 radius, glm::vec4 foreground, glm::vec4 background) {}
-
-    /// Update some internal structure
-    virtual void update() {}
-
-    virtual ~DummyDebugDrawer() {}
-
-};
-
 class GFXDebugDrawer : public familyline::logic::DebugDrawer
 {
 private:

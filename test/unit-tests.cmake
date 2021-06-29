@@ -43,6 +43,7 @@ if (FLINE_BUILD_TESTS)
     "${CMAKE_SOURCE_DIR}/test/test_object_factory.cpp"
     "${CMAKE_SOURCE_DIR}/test/test_object_operations.cpp"
     "${CMAKE_SOURCE_DIR}/test/test_pathfinder.cpp"
+    "${CMAKE_SOURCE_DIR}/test/test_pathmanager.cpp"
     "${CMAKE_SOURCE_DIR}/test/test_player_manager.cpp"
     "${CMAKE_SOURCE_DIR}/test/test_scene_manager.cpp"
     "${CMAKE_SOURCE_DIR}/test/test_terrain.cpp"
@@ -90,6 +91,15 @@ if (FLINE_BUILD_TESTS)
       target_link_libraries( familyline-tests "-ggdb -fsanitize=address")
     endif()
   endif(FLINE_DO_CHECK_ASAN)
+
+  if (FLINE_DO_CHECK_UBSAN)
+    if (WIN32)
+      message("No support for windows + undefined behavior sanitizer yet")
+    else() 
+      target_compile_options(familyline-tests PUBLIC "-fsanitize=undefined")
+      target_link_libraries(familyline-tests "-fsanitize=undefined")
+    endif()
+  endif()
 
 
   target_compile_definitions(familyline-tests PUBLIC

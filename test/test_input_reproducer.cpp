@@ -21,21 +21,21 @@ using namespace familyline;
 
 TEST(InputReproduceTest, TestIfInputReproduces)
 {
-    InputProcessor* ipr = new InputProcessor;
+    auto ipr = std::make_unique<InputProcessor>();
     InputService::setInputManager(std::make_unique<InputManager>(*ipr));
 
     LogicService::getObjectListener()->clear();
-    ObjectPathManager::getInstance()->clear();
     LogicService::getActionQueue()->clearEvents();
     LogicService::getObjectFactory()->clear();
     GFXService::setDevice(std::make_unique<TestDevice>());
 
     std::string mapfile = TESTS_DIR "/terrain_test.flte";
 
-    TestWindow* w = new TestWindow{};
+    TestWindow* w = (TestWindow*) GFXService::getDevice()->createWindow(800, 600);
     w->createRenderer();
     GFXGameInit gi{
-        w, new TestFramebuffer{"f3D", 800, 600}, new TestFramebuffer{"fGUI", 800, 600},
+        w, GFXService::getDevice()->createFramebuffer("f3D", 800, 600),
+        GFXService::getDevice()->createFramebuffer("fGUI", 800, 600),
         w->createGUIManager()};
 
     Game* g   = new Game(gi);
@@ -44,7 +44,7 @@ TEST(InputReproduceTest, TestIfInputReproduces)
     auto atkc1 = std::optional<AttackComponent>(AttackComponent{
         nullptr, 1.0f, 2.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 2.0f, 1.0f, 3.14f});
     auto obj_s = make_ownable_object(
-        {"testobj", "Test Object", glm::vec2(0, 0), 200, 200, true, []() {}, atkc1});
+        {"testobj", "Test Object", glm::vec2(1, 1), 200, 200, true, []() {}, atkc1});
 
     auto& of = LogicService::getObjectFactory();
     of->addObject(obj_s.get());
@@ -103,7 +103,6 @@ TEST(InputReproduceTest, TestIfInputReproduces)
     }
 
     LogicService::getObjectListener()->clear();
-    ObjectPathManager::getInstance()->clear();
     LogicService::getActionQueue()->clearEvents();
     InputService::setInputManager(std::unique_ptr<InputManager>());
     GFXService::setDevice(std::unique_ptr<TestDevice>());
@@ -112,21 +111,21 @@ TEST(InputReproduceTest, TestIfInputReproduces)
 
 TEST(InputReproduceTest, TestIfInputReproducerFailsOnBrokenFile)
 {
-    InputProcessor* ipr = new InputProcessor;
+    auto ipr = std::make_unique<InputProcessor>();
     InputService::setInputManager(std::make_unique<InputManager>(*ipr));
 
     LogicService::getObjectListener()->clear();
-    ObjectPathManager::getInstance()->clear();
     LogicService::getActionQueue()->clearEvents();
     LogicService::getObjectFactory()->clear();
     GFXService::setDevice(std::make_unique<TestDevice>());
 
     std::string mapfile = TESTS_DIR "/terrain_test.flte";
 
-    TestWindow* w = new TestWindow{};
+    TestWindow* w = (TestWindow*) GFXService::getDevice()->createWindow(800, 600);
     w->createRenderer();
     GFXGameInit gi{
-        w, new TestFramebuffer{"f3D", 800, 600}, new TestFramebuffer{"fGUI", 800, 600},
+        w, GFXService::getDevice()->createFramebuffer("f3D", 800, 600),
+        GFXService::getDevice()->createFramebuffer("fGUI", 800, 600),
         w->createGUIManager()};
 
     Game* g   = new Game(gi);
@@ -135,7 +134,7 @@ TEST(InputReproduceTest, TestIfInputReproducerFailsOnBrokenFile)
     auto atkc1 = std::optional<AttackComponent>(AttackComponent{
         nullptr, 1.0f, 2.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 2.0f, 1.0f, 3.14f});
     auto obj_s = make_ownable_object(
-        {"testobj", "Test Object", glm::vec2(0, 0), 200, 200, true, []() {}, atkc1});
+        {"testobj", "Test Object", glm::vec2(1, 1), 200, 200, true, []() {}, atkc1});
 
     auto& of = LogicService::getObjectFactory();
     of->addObject(obj_s.get());
@@ -149,7 +148,6 @@ TEST(InputReproduceTest, TestIfInputReproducerFailsOnBrokenFile)
     delete w;
 
     LogicService::getObjectListener()->clear();
-    ObjectPathManager::getInstance()->clear();
     LogicService::getActionQueue()->clearEvents();
     InputService::setInputManager(std::unique_ptr<InputManager>());
     GFXService::setDevice(std::unique_ptr<TestDevice>());

@@ -1,4 +1,6 @@
+#include <algorithm>
 #include <common/logic/debug_drawer.hpp>
+#include <iterator>
 
 using namespace familyline::logic;
 

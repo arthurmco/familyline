@@ -1,11 +1,13 @@
 #pragma once
 
 #include <common/logic/imesh.hpp>
+#include <glm/fwd.hpp>
 #include <string>
 #include <optional>
 
 #include "animator.hpp"
 #include "asset_object.hpp"
+#include <queue>
 
 namespace familyline::graphics
 {
@@ -22,7 +24,7 @@ private:
     glm::mat4 _worldMatrix;
     glm::vec3 worldPosition;
     std::vector<VertexInfo> vinfo;
-    
+
 public:
     Mesh(const char* name, Animator* ani, std::vector<VertexInfo> vinfo)
         :  _name(name), _ani(ani), _worldMatrix(glm::mat4(1.0))
@@ -30,6 +32,10 @@ public:
         this->vinfo = vinfo;
     }
 
+    virtual ~Mesh() {
+        delete _ani;
+    }
+    
     /**
      * Update the world matrix and the animator
      */

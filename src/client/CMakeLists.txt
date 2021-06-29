@@ -98,3 +98,13 @@ if (FLINE_DO_CHECK_ASAN)
     target_link_libraries(familyline-client PUBLIC "-fno-omit-frame-pointer")
   endif()
 endif()
+
+
+if (FLINE_DO_CHECK_UBSAN)
+  if (WIN32)
+    message("No support for windows + undefined behavior sanitizer yet")
+  else() 
+    target_compile_options(familyline-client PUBLIC "-fsanitize=undefined")
+    target_link_libraries(familyline-client PUBLIC "-fsanitize=undefined")
+  endif()
+endif()

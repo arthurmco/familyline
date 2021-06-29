@@ -3,12 +3,24 @@ dist: focal
 
 os:
   - linux
-  
+
+before_script:
+  - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+  - sudo apt-get -q update
+
+  # Thanks, user native-api from the travis-ci forums
+  # https://travis-ci.community/t/clang-10-was-recently-broken-on-linux-unmet-dependencies-for-clang-10-clang-tidy-10-valgrind/11527/2
+  - sudo apt-get install -yq --allow-downgrades libc6=2.31-0ubuntu9.2 libc6-dev=2.31-0ubuntu9.2
+  - sudo -E apt-get -yq --no-install-suggests --no-install-recommends --allow-downgrades --allow-remove-essential --allow-change-held-packages install build-essential automake autoconf autoconf-archive libtool-bin texinfo yasm gcc-10 g++-10 clang-10 clang-format-10 clang-tidy-10 ninja-build cppcheck valgrind doxygen graphviz lcov -o Debug::pkgProblemResolver=yes
+
 addons:
   apt:
     sources:
-      - ubuntu-toolchain-r-test
-      - llvm-toolchain-focal-11
+      - # i386 not available
+      - sourceline: 'deb http://apt.llvm.org/focal/ llvm-toolchain-focal-11 main'
+        key_url: 'https://apt.llvm.org/llvm-snapshot.gpg.key'
+      - sourceline: 'deb-src http://apt.llvm.org/focal/ llvm-toolchain-focal-11 main'
+        key_url: 'https://apt.llvm.org/llvm-snapshot.gpg.key'
 
     packages:
       - g++-10
@@ -35,12 +47,11 @@ addons:
       - flatbuffers-compiler
       - libcurlpp-dev
       - libexpected-dev
-      
 # We attempt to fix an issue with the flatc finder command
 script:
   - ${CXX} --version
   - mkdir build && cd build
-  - cmake -DFLINE_BUILD_TESTS=on -DFLINE_DO_CHECK_ASAN=off -DFLINE_SET_COVERAGE=off -DFLINE_USE_RELATIVE_PATH=on -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DFLATC_TARGET="" -DFLATBUFFERS_FLATC_EXECUTABLE="/usr/bin/flatc" ..
+  - cmake -DFLINE_BUILD_TESTS=on ${EXTRAOPTS} -DFLINE_USE_RELATIVE_PATH=on -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DFLATC_TARGET="" -DFLATBUFFERS_FLATC_EXECUTABLE="/usr/bin/flatc" ..
   - make familyline-tests
   - ./familyline-tests
 
@@ -53,12 +64,29 @@ jobs:
       compiler: gcc
       env:
         - CXX=g++-10
+        - EXTRAOPTS="-DFLINE_DO_CHECK_ASAN=off -DFLINE_DO_CHECK_UBSAN=off -DFLINE_SET_COVERAGE=off"
     - name: clang
       os: linux
       compiler: clang
       env:
         - CXX=clang++-11
         - CC=clang-11
+        - EXTRAOPTS="-DFLINE_DO_CHECK_ASAN=off -DFLINE_DO_CHECK_UBSAN=off -DFLINE_SET_COVERAGE=off"
+    - name: gcc-asan
+      os: linux
+      compiler: gcc
+      env:
+        - CXX=g++-10
+        - CC=gcc-10
+        - EXTRAOPTS="-DFLINE_DO_CHECK_ASAN=on -DFLINE_DO_CHECK_UBSAN=off -DFLINE_SET_COVERAGE=off"
+        - LSAN_OPTIONS="suppressions=../test/lsan.supp"
+    - name: gcc-ubsan
+      os: linux
+      compiler: gcc
+      env:
+        - CXX=g++-10
+        - CC=gcc-10
+        - EXTRAOPTS="-DFLINE_DO_CHECK_ASAN=off -DFLINE_DO_CHECK_UBSAN=on -DFLINE_SET_COVERAGE=off"
 
 cache:
   apt: true

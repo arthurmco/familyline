@@ -1,0 +1,4 @@
+leak:libfontconfig.so
+leak:libcairo.so
+leak:libyaml-0.so
+leak:libpixman-1.so

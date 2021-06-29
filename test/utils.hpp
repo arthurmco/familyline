@@ -3,6 +3,7 @@
  *
  * Copyright (C) 2020 Arthur Mendes
  */
+#pragma once
 
 #include <common/objects/ObjectMacros.h>
 
@@ -78,10 +79,12 @@ private:
 public:
     DummyPlayer(
         familyline::logic::PlayerManager& pm, const familyline::logic::Terrain& t, const char* name,
-        int code, decltype(player_input_cb_) input_cb)
+        uint64_t code, decltype(player_input_cb_) input_cb)
         : familyline::logic::Player(pm, t, name, code), player_input_cb_(input_cb)
     {
     }
 
     virtual void generateInput();
 };
+
+

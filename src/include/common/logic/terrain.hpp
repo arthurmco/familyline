@@ -42,7 +42,7 @@ public:
  *
  * Under development
  */
-enum TerrainType { Grass = 0, Sand = 10, Water = 20, Mountain = 30, Dirt = 40 };
+enum TerrainType : uint16_t { Grass = 0, Sand = 10, Water = 20, Mountain = 30, Dirt = 40 };
 
 class Terrain
 {
@@ -93,7 +93,7 @@ public:
         return glm::vec3(gfxcoords.x / xzscale_, gfxcoords.y / yscale_, gfxcoords.z / xzscale_);
     }
 
-    std::tuple<uint32_t, uint32_t> getSize() { return tf_.getSize(); }
+    std::tuple<uint32_t, uint32_t> getSize() const { return tf_.getSize(); }
 
     TerrainOverlay* createOverlay(const char* name);
 };

@@ -14,6 +14,8 @@
 
 namespace familyline::graphics
 {
+
+    // TODO: make this use an unique_ptr
 class TextureManager
 {
 private:
@@ -27,6 +29,12 @@ public:
 
     Texture* GetTexture(int ID);
     Texture* GetTexture(const char* name);
+
+    ~TextureManager() {
+        for (auto& [n, ptr] : _textures) {
+            delete ptr;
+        }
+    }
 };
 
 }  // namespace familyline::graphics

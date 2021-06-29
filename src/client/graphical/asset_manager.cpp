@@ -74,6 +74,9 @@ std::vector<std::shared_ptr<AssetObject>> loadMeshAsset(Asset& asset)
         delete[] matname;
     }
 
+    for (auto i=1; i<ms.size(); i++)
+        delete ms[i];
+    
     return {std::shared_ptr<Mesh>(ms[0])};
 }
 
@@ -116,8 +119,8 @@ std::vector<std::shared_ptr<AssetObject>> Asset::loadAssetObject()
 
 AssetManager::AssetManager()
 {
-    new OBJOpener();
-    new MD2Opener();
+    openers.push_back(new OBJOpener());
+    openers.push_back(new MD2Opener());
 }
 
 /**
@@ -152,7 +155,12 @@ Asset AssetManager::processAsset(AssetItem& av)
         sprintf(matname, "texture:%s", asset.name.c_str());
         Material* m = new Material{matname, MaterialData(0.1, 0.8, 0.5)};
         m->setTexture(tex);
-        GFXService::getMaterialManager()->addMaterial(m);
+
+        // addMaterial copies the object
+        // TODO: make this explicit in typing (for example, by using an unique_ptr)
+        GFXService::getMaterialManager()->addMaterial(m); 
+        delete m;
+        delete[] matname;
 
     } else if (av.type == "material") {
         asset.type = AssetType::MaterialAsset;
@@ -201,7 +209,7 @@ void AssetManager::loadFile(AssetFile& file)
         }
 
         Asset asset = this->processAsset(*av);
-
+        
         this->_assets[asset.name] = asset;
         log->write(
             "asset-manager", LogType::Info, "found asset '%s' at path '%s' (%zu dependencies)",

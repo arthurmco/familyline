@@ -27,8 +27,8 @@ add_library(
   "logic/object_factory.cpp"
   "logic/object_listener.cpp"
   "logic/object_manager.cpp"
-  "logic/ObjectPathManager.cpp"
-  "logic/PathFinder.cpp"
+  "logic/object_path_manager.cpp"
+  "logic/pathfinder.cpp"
   "logic/player.cpp"
   "logic/replay_player.cpp"
   "logic/player_manager.cpp"
@@ -40,6 +40,8 @@ add_library(
   "net/server.cpp"
   "net/game_packet_server.cpp"
   "net/network_client.cpp"
+  "net/net_player_sender.cpp"
+  "net/network_player.cpp"
   )
 
 add_dependencies(familyline-common input-flatbuffer input-ser-flatbuffer network-flatbuffer)
@@ -94,6 +96,16 @@ if (FLINE_DO_CHECK_ASAN)
     target_link_libraries(familyline-common PUBLIC "-fsanitize=address")
     target_compile_options(familyline-common PUBLIC "-fno-omit-frame-pointer")
     target_link_libraries(familyline-common PUBLIC "-fno-omit-frame-pointer")
+  endif()
+endif()
+
+
+if (FLINE_DO_CHECK_UBSAN)
+  if (WIN32)
+    message("No support for windows + undefined behavior sanitizer yet")
+  else() 
+    target_compile_options(familyline-common PUBLIC "-fsanitize=undefined")
+    target_link_libraries(familyline-common PUBLIC "-fsanitize=undefined")
   endif()
 endif()
 

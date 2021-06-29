@@ -22,7 +22,7 @@ private:
     }
 
 public:
-    DummyPlayer(PlayerManager& pm, const Terrain& t, const char* name, int code)
+    DummyPlayer(PlayerManager& pm, const Terrain& t, const char* name, uint64_t code)
         : Player(pm, t, name, code)
     {
     }
@@ -73,8 +73,6 @@ std::unique_ptr<logic::PlayerManager> initPlayerManager(
         std::unique_ptr<Player>(new HumanPlayer{*pm.get(), terrain, human_info.name.c_str(), 0, true}));
     pm->add(std::unique_ptr<Player>(new DummyPlayer{*pm.get(), terrain, "Dummy Player", 1}));
 
-    fprintf(stderr, "%x ----", hid);
-
     human_info.id = hid;
     return std::move(pm);
 }
@@ -89,12 +87,11 @@ std::unique_ptr<logic::PlayerManager> initPlayerManager(
  * we find.
  */
 std::unique_ptr<logic::ColonyManager> initColonyManager(
-    PlayerManager& pm, std::map<unsigned int, std::reference_wrapper<logic::Colony>>& player_colony)
+    PlayerManager& pm, std::map<uint64_t, std::reference_wrapper<logic::Colony>>& player_colony)
 {
     auto playerlist = pm.getPlayerNames();
     auto cm         = std::make_unique<ColonyManager>();
 
-    puts("aaa");
     for (auto [id, name] : playerlist) {
         // generate a random color
         // we will see the mess when the game starts showing this color
@@ -132,7 +129,7 @@ std::unique_ptr<logic::ColonyManager> initColonyManager(
 PlayerSession familyline::initSinglePlayerSession(
     logic::Terrain& terrain, InitPlayerInfo& human_info)
 {
-    std::map<unsigned int /*player_id*/, std::reference_wrapper<logic::Colony>> player_colony;
+    std::map<uint64_t /*player_id*/, std::reference_wrapper<logic::Colony>> player_colony;
 
     auto pm = initPlayerManager(terrain, human_info);
     auto cm = initColonyManager(*pm.get(), player_colony);

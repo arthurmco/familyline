@@ -55,3 +55,18 @@ std::unique_ptr<ObjectFactory>& LogicService::getObjectFactory()
 
     return _object_factory;
 }
+
+std::unique_ptr<ObjectPathManager> LogicService::path_manager_;
+
+void LogicService::initPathManager(Terrain& t)
+{
+    if (path_manager_)
+        path_manager_.reset();
+        
+    path_manager_ = std::make_unique<ObjectPathManager>(t);
+    
+}
+std::unique_ptr<ObjectPathManager>& LogicService::getPathManager()
+{
+    return path_manager_;
+}

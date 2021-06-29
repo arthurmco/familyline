@@ -105,7 +105,7 @@ struct EventDying {
  * This entity just ended the death animation. Only its remains lie at the
  * floor.
  *
- * Soon this entity will be cleaned from memtoy
+ * Soon this entity will be cleaned from memory
  */
 struct EventDead {
     entity_id_t objectID;
@@ -154,6 +154,8 @@ public:
     void pushEvent(EntityEvent& e);
 
     bool pollEvent(EntityEvent& e);
+
+    virtual ~EventReceiver() {}
 };
 
 /**
@@ -173,5 +175,7 @@ protected:
 
 public:
     virtual const std::string getName() = 0;
+
+    virtual ~EventEmitter() {}
 };
 }  // namespace familyline::logic

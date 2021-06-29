@@ -46,6 +46,9 @@ TEST(ModelOpener, TestIfOBJOpens) {
     EXPECT_FLOAT_EQ(1.665732, bb.maxZ);
     
     GFXService::getShaderManager()->clear();
+    
+    for (auto* m : meshes)
+        delete m;
 }
 
 
@@ -84,7 +87,10 @@ TEST(ModelOpener, TestIfStaticMD2Opens) {
     EXPECT_FLOAT_EQ(1.0, bb.maxX);
     EXPECT_FLOAT_EQ(1.0, bb.maxY);
     EXPECT_FLOAT_EQ(1.0, bb.maxZ);
-        
+
+    for (auto* m : meshes)
+        delete m;
+    
     GFXService::getShaderManager()->clear();
 }
 

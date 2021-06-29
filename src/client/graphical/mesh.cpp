@@ -13,7 +13,7 @@ void Mesh::update()
     translMatrix      = glm::translate(translMatrix, this->worldPosition);
 
     _worldMatrix = translMatrix;
-
+    
     // update values in the shader state
     for (auto& vi : vinfo) {
         vi.shaderState.matrixUniforms["mWorld"] = _worldMatrix;

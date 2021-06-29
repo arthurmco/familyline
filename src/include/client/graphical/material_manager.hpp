@@ -29,6 +29,7 @@ public:
 
     Material* getMaterial(int ID);
     Material* getMaterial(const char* name);
+
 };
 
 }  // namespace familyline::graphics

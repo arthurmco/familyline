@@ -51,7 +51,10 @@ public:
 
     virtual familyline::graphics::Renderer* createRenderer()
     {
-        tr = new TestRenderer{};
+        if (tr)
+            delete tr;
+
+        tr = new TestRenderer{};        
         return this->getRenderer();
     }
     virtual familyline::graphics::Renderer* getRenderer()

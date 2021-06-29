@@ -4,6 +4,7 @@
 #include <common/logger.hpp>
 #include <common/logic/action_queue.hpp>
 #include <functional>
+#include <cassert>
 
 using namespace familyline::logic;
 
@@ -16,17 +17,24 @@ void ActionQueue::addEmitter(EventEmitter* e)
 
 void ActionQueue::addReceiver(EventReceiver* r, std::initializer_list<ActionQueueEvent> events)
 {
+    assert(r);
+    auto& log = LoggerService::getLogger();
+    
     ReceiverData rd;
     rd.events   = events;
     rd.receiver = r;
 
-    // printf("\tadded event receiver %s\n", r->getName().c_str());
+    log->write("action-queue", LogType::Debug, "added event receiver %s (%p)", r->getName().c_str(), r);
 
     this->receivers.push_back(rd);
 }
 
 void ActionQueue::removeReceiver(EventReceiver* r)
 {
+    assert(r);
+    auto& log = LoggerService::getLogger();
+    log->write("action-queue", LogType::Debug, "removed event receiver %s (%p)", r->getName().c_str(), r);
+
     auto newend = std::remove_if(receivers.begin(), receivers.end(), [r](ReceiverData rec) {
         return (rec.receiver->getName() == r->getName());
     });

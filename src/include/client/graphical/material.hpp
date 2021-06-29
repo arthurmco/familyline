@@ -56,6 +56,7 @@ public:
     void setTexture(Texture*);
 
     virtual AssetType getAssetType() const { return AssetType::MaterialAsset; }
+
 };
 
 }  // namespace familyline::graphics

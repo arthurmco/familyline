@@ -32,7 +32,7 @@ bool build_tent = false, build_tower = false;
 bool do_something = false;
 
 
-HumanPlayer::HumanPlayer(PlayerManager& pm, const Terrain& t, const char* name, int code,
+HumanPlayer::HumanPlayer(PlayerManager& pm, const Terrain& t, const char* name, uint64_t code,
                          bool can_control = true)
     : Player(pm, t, name, code), can_control_(can_control)
 {

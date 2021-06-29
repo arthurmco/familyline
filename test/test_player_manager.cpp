@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
-#include <common/logic/ObjectPathManager.hpp>
-#include <common/logic/PathFinder.hpp>
+#include <common/logic/object_path_manager.hpp>
+#include <common/logic/pathfinder.hpp>
 #include <common/logic/colony_manager.hpp>
 #include <common/logic/lifecycle_manager.hpp>
 #include <common/logic/logic_service.hpp>
@@ -23,7 +23,7 @@ void stepLogic(PlayerManager& pm, GameContext& gctx)
 
     gctx.tick++;
     gctx.elapsed_seconds += elapsed;
-    ObjectPathManager::getInstance()->UpdatePaths(elapsed * 1000);
+    LogicService::getPathManager()->update(*gctx.om);
 }
 
 TEST(PlayerManager, TestIfPlayerCanBuild)
@@ -32,13 +32,11 @@ TEST(PlayerManager, TestIfPlayerCanBuild)
 
     ObjectManager om;
     ObjectLifecycleManager olm{om};
-    PathFinder pf{&om};
 
     bool object_rendered = false;
 
     PlayerManager pm;
     pm.olm = &olm;
-    pm.pf  = &pf;
 
     auto atkc1 = std::optional<AttackComponent>(AttackComponent{
         nullptr, 1.0f, 2.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 2.0f, 1.0f, 3.14f});
@@ -48,7 +46,9 @@ TEST(PlayerManager, TestIfPlayerCanBuild)
 
     TerrainFile tf{20, 20};
     Terrain t{tf};
-
+    LogicService::initPathManager(t);
+    LogicService::initDebugDrawer(new DummyDebugDrawer{t});
+    
     auto d = std::make_unique<DummyPlayer>(
         pm, t, "Test", 1, [&](size_t) -> std::vector<PlayerInputType> {
             return {CreateEntity{"test", 10, 12}};
@@ -81,13 +81,11 @@ TEST(PlayerManager, TestIfPlayerCanSelect)
 
     ObjectManager om;
     ObjectLifecycleManager olm{om};
-    PathFinder pf{&om};
 
     bool object_rendered = false;
 
     PlayerManager pm;
     pm.olm = &olm;
-    pm.pf  = &pf;
 
     auto atkc1 = std::optional<AttackComponent>(AttackComponent{
         nullptr, 1.0f, 2.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 2.0f, 1.0f, 3.14f});
@@ -104,7 +102,9 @@ TEST(PlayerManager, TestIfPlayerCanSelect)
 
     TerrainFile tf{1, 1};
     Terrain t{tf};
-
+    LogicService::initPathManager(t);
+    LogicService::initDebugDrawer(new DummyDebugDrawer{t});
+    
     auto d = std::make_unique<DummyPlayer>(
         pm, t, "Test", 1, [&](size_t) -> std::vector<PlayerInputType> {
             return {
@@ -142,13 +142,11 @@ TEST(PlayerManager, TestIfPlayerCanDeselect)
 
     ObjectManager om;
     ObjectLifecycleManager olm{om};
-    PathFinder pf{&om};
 
     bool object_rendered = false;
 
     PlayerManager pm;
     pm.olm = &olm;
-    pm.pf  = &pf;
 
     auto atkc1 = std::optional<AttackComponent>(AttackComponent{
         nullptr, 1.0f, 2.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 2.0f, 1.0f, 3.14f});
@@ -167,7 +165,9 @@ TEST(PlayerManager, TestIfPlayerCanDeselect)
 
     TerrainFile tf{1, 1};
     Terrain t{tf};
-
+    LogicService::initPathManager(t);
+    LogicService::initDebugDrawer(new DummyDebugDrawer{t});
+    
     auto d = std::make_unique<DummyPlayer>(
         pm, t, "Test", 1, [&](size_t tick) -> std::vector<PlayerInputType> {
             switch (tick) {
@@ -220,19 +220,17 @@ TEST(PlayerManager, TestIfPlayerCannotMoveNotOwnedObject)
     LogicService::getObjectFactory()->clear();
     auto tf = std::make_unique<TerrainFile>(30, 30);
     Terrain t{*tf};
-    ObjectPathManager::getInstance()->SetTerrain(&t);
-
+    LogicService::initPathManager(t);
+    LogicService::initDebugDrawer(new DummyDebugDrawer{t});
+    
     ColonyManager cm;
     ObjectManager om;
     ObjectLifecycleManager olm{om};
-    PathFinder pf{&om};
-    pf.InitPathmap(30, 30);
 
     bool object_rendered = false;
 
     PlayerManager pm;
     pm.olm = &olm;
-    pm.pf  = &pf;
 
     auto atkc1  = std::optional<AttackComponent>(AttackComponent{
         nullptr, 1.0f, 2.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 2.0f, 1.0f, 3.14f});
@@ -311,8 +309,6 @@ TEST(PlayerManager, TestIfPlayerCannotMoveNotOwnedObject)
     ASSERT_FLOAT_EQ(20.0, opos.x);
     ASSERT_FLOAT_EQ(20.0, opos.z);
 
-    // TODO: refactor the path manager PLEASE
-    ObjectPathManager::getInstance()->SetTerrain(nullptr);
 }
 
 TEST(PlayerManager, TestIfPlayerCanMove)
@@ -320,19 +316,17 @@ TEST(PlayerManager, TestIfPlayerCanMove)
     LogicService::getObjectFactory()->clear();
     auto tf = std::make_unique<TerrainFile>(30, 30);
     Terrain t{*tf};
-    ObjectPathManager::getInstance()->SetTerrain(&t);
-
+    LogicService::initPathManager(t);
+    LogicService::initDebugDrawer(new DummyDebugDrawer{t});
+    
     ColonyManager cm;
     ObjectManager om;
     ObjectLifecycleManager olm{om};
-    PathFinder pf{&om};
-    pf.InitPathmap(30, 30);
 
     bool object_rendered = false;
 
     PlayerManager pm;
     pm.olm = &olm;
-    pm.pf  = &pf;
 
     auto atkc1  = std::optional<AttackComponent>(AttackComponent{
         nullptr, 1.0f, 2.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 2.0f, 1.0f, 3.14f});
@@ -406,6 +400,7 @@ TEST(PlayerManager, TestIfPlayerCanMove)
     stepLogic(pm, gctx);
     stepLogic(pm, gctx);
     stepLogic(pm, gctx);
+    stepLogic(pm, gctx);
 
     for (auto i = 0; i < delta; i++) stepLogic(pm, gctx);
 
@@ -415,8 +410,6 @@ TEST(PlayerManager, TestIfPlayerCanMove)
     ASSERT_FLOAT_EQ(15.0, opos.x);
     ASSERT_FLOAT_EQ(14.0, opos.z);
 
-    // TODO: refactor the path manager PLEASE
-    ObjectPathManager::getInstance()->SetTerrain(nullptr);
 }
 
 TEST(PlayerManager, TestIfTickDeltaIsRespected)
@@ -425,13 +418,11 @@ TEST(PlayerManager, TestIfTickDeltaIsRespected)
 
     ObjectManager om;
     ObjectLifecycleManager olm{om};
-    PathFinder pf{&om};
 
     bool object_rendered = false;
 
     PlayerManager pm;
     pm.olm = &olm;
-    pm.pf  = &pf;
 
     auto atkc1 = std::optional<AttackComponent>(AttackComponent{
         nullptr, 1.0f, 2.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 2.0f, 1.0f, 3.14f});
@@ -441,7 +432,9 @@ TEST(PlayerManager, TestIfTickDeltaIsRespected)
 
     TerrainFile tf{20, 20};
     Terrain t{tf};
-
+    LogicService::initPathManager(t);
+    LogicService::initDebugDrawer(new DummyDebugDrawer{t});
+    
     auto d = std::make_unique<DummyPlayer>(
         pm, t, "Test", 1, [&](size_t tick) -> std::vector<PlayerInputType> {
             if (tick == 1)
@@ -482,13 +475,11 @@ TEST(PlayerManager, TestIfOutOfOrderActionsAreOrdered)
 
     ObjectManager om;
     ObjectLifecycleManager olm{om};
-    PathFinder pf{&om};
 
     bool object_rendered = false;
 
     PlayerManager pm;
     pm.olm = &olm;
-    pm.pf  = &pf;
 
     auto atkc1 = std::optional<AttackComponent>(AttackComponent{
         nullptr, 1.0f, 2.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 2.0f, 1.0f, 3.14f});
@@ -498,7 +489,9 @@ TEST(PlayerManager, TestIfOutOfOrderActionsAreOrdered)
 
     TerrainFile tf{20, 20};
     Terrain t{tf};
-
+    LogicService::initPathManager(t);
+    LogicService::initDebugDrawer(new DummyDebugDrawer{t});
+    
     auto d = std::make_unique<DummyPlayer>(
         pm, t, "Test", 1, [&](size_t tick) -> std::vector<PlayerInputType> {
             return {};

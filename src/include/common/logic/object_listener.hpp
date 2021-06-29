@@ -13,8 +13,8 @@
 
 #include <set>
 
-#include "game_event.hpp"
-#include "game_object.hpp"
+#include <common/logic/game_event.hpp>
+#include <common/logic/game_object.hpp>
 
 namespace familyline::logic
 {

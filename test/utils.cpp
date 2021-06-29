@@ -72,3 +72,4 @@ void DummyPlayer::generateInput()
         this->pushAction(i);
     }
 }
+

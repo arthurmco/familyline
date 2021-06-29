@@ -51,6 +51,9 @@ std::vector<Material*> MTLOpener::Open(const char* file)
                 mats.push_back(m);
             }
 
+            if (matname)
+                delete[] matname;
+            
             matname = new char[256];
             memset((void*)matname, 0, 255);
 
@@ -109,6 +112,9 @@ std::vector<Material*> MTLOpener::Open(const char* file)
     md.ambientColor  = diffuse * 0.1f;
     Material* m      = new Material{(int)mats.size(), matname, md};
     mats.push_back(m);
+
+    if (matname)
+        delete[] matname;
 
     fclose(fMat);
     return mats;

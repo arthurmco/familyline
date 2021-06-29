@@ -50,6 +50,8 @@ public:
      * Get the current time, in ms, of the current animation
      */
     virtual double getCurrentTime() { return 0.0; }
+
+    virtual ~Animator() {}
     
     bool isDirty() { return this->dirtyFrame; }
 };
