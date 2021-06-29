@@ -61,6 +61,8 @@ private:
 
     std::atomic<bool> waiting_for_load_ = false;
     std::atomic<bool> waiting_for_ready_ = false;
+
+    uint64_t last_message_id_ = (uint64_t)-1;
     
 public:
     NetworkClient(uint64_t id, FnClientOut&& fn_out, FnClientIn&& fn_in)

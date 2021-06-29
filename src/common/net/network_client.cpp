@@ -108,7 +108,13 @@ void NetworkClient::update()
     recv_queue_mtx_.lock();
     Packet pkt;
     while (fn_in_(pkt)) {
-        recv_queue_.push(pkt);
+        // Avoid pushing duplicated messages.
+        // This will make the game state different between clients.
+        if (pkt.id != last_message_id_ || pkt.tick == 0) {
+            last_message_id_ = pkt.id;
+            recv_queue_.push(pkt);
+        }
+
     }
     recv_queue_mtx_.unlock();
 }
