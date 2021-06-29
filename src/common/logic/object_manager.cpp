@@ -79,7 +79,7 @@ void ObjectManager::remove(object_id_t id)
 {
     auto rit = std::remove_if(
         _objects.begin(), _objects.end(),
-        [id](std::shared_ptr<GameObject> v) { return v->getID() == id; });
+        [id](std::shared_ptr<GameObject>& v) { return v->getID() == id; });
 
     eventEmitter->notifyRemoval(id, (*rit)->getName());
 
