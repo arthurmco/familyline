@@ -91,7 +91,6 @@ Packet toNativePacket(const ::familyline::NetPacket* p)
                     }
                 });
             message = Packet::InputRequest{m->client_from(), itype};
-            printf("aaa\n");
             break;
         }
         case familyline::Message_ires: {
@@ -260,7 +259,8 @@ void GamePacketServer::update()
     if (!connected_) return;
 
     auto& log = LoggerService::getLogger();
-
+    std::array<uint8_t, 1024*16> data;
+    
     std::this_thread::sleep_for(std::chrono::nanoseconds(10));
     while (!send_queue_.empty()) {
         send_mutex_.lock();
@@ -293,8 +293,7 @@ void GamePacketServer::update()
         log->write("game-packet-server", LogType::Info, "data sent! (%zu)", byte_data.size());
     }
 
-    uint8_t data[1024] = {};
-    auto r             = recv(socket_, data, 1023, MSG_DONTWAIT);
+    auto r             = recv(socket_, data.data(), data.size()-1, MSG_DONTWAIT);
     if (r == 0) {
         log->write("game-packet-server", LogType::Error, "Connection terminated");
         connected_ = false;
@@ -313,7 +312,7 @@ void GamePacketServer::update()
         return;
     }
 
-    std::vector<uint8_t> vdata(data, data + r);
+    std::vector<uint8_t> vdata(data.begin(), data.begin() + r);
     auto pkts = this->decodeMessage(vdata);
     if (pkts.size() == 0) {
         log->write(
@@ -565,8 +564,8 @@ std::vector<Packet> GamePacketServer::decodeMessage(std::vector<uint8_t> data)
 
     if (data.size() > packetdata.size()) {
         log->write(
-            "game-packet-server", LogType::Warning,
-            "extra data in this packet, maybe we received more than 1 packet in a message? (%zu vs "
+            "game-packet-server", LogType::Info,
+            "we received more than 1 packet in a message? (%zu vs "
             "%zu)",
             data.size(), packetdata.size());
 
