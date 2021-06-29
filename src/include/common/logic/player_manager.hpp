@@ -73,7 +73,7 @@ private:
 
     /// The difference between the tick we are executing and the tick that the message pushed in
     /// this tick will be run by default
-    size_t tick_delta_ = 6;
+    size_t tick_delta_ = 10;
 
     void processAction(const PlayerInputAction& a, ObjectManager& om);
 
