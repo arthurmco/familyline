@@ -16,6 +16,7 @@
 #include <string>
 #include <tuple>
 #include <vector>
+
 #include "input_generated.h"
 
 namespace familyline::logic
@@ -141,14 +142,15 @@ PlayerInputType deserializeInputAction(
     auto atype = fnTypeCode(actioninfo);
     switch (atype) {
         case familyline::InputType_cmd: {
-            auto cmd = (familyline::CommandInput*) fnTypeData(actioninfo, atype);
+            auto cmd = (familyline::CommandInput*)fnTypeData(actioninfo, atype);
             auto val = std::monostate{};
 
             switch (cmd->args()->args()->size()) {
                 case 0: type = CommandInput{cmd->command()->str(), std::monostate{}}; break;
 
                 case 1:
-                    type = CommandInput{cmd->command()->str(), cmd->args()->args()->Get(0)};
+                    type = CommandInput{
+                        cmd->command()->str(), (object_id_t)cmd->args()->args()->Get(0)};
                     break;
                 case 2:
                     type = CommandInput{
@@ -166,7 +168,7 @@ PlayerInputType deserializeInputAction(
 
         } break;
         case familyline::InputType_sel: {
-            auto sel = (familyline::SelectAction*) fnTypeData(actioninfo, atype);
+            auto sel = (familyline::SelectAction*)fnTypeData(actioninfo, atype);
             std::vector<long unsigned int> objects;
 
             std::copy(
@@ -175,25 +177,25 @@ PlayerInputType deserializeInputAction(
             type = SelectAction{objects};
         } break;
         case familyline::InputType_obj_move: {
-            auto omove = (familyline::ObjectMove*) fnTypeData(actioninfo, atype);
+            auto omove = (familyline::ObjectMove*)fnTypeData(actioninfo, atype);
             int xPos = (int)omove->x_pos(), yPos = (int)omove->y_pos();
 
             type = ObjectMove{xPos, yPos};
         } break;
         case familyline::InputType_cam_move: {
-            auto cmove = (familyline::CameraMove*) fnTypeData(actioninfo, atype);
+            auto cmove = (familyline::CameraMove*)fnTypeData(actioninfo, atype);
             double dX = cmove->x_delta(), dY = cmove->y_delta(), dZoom = cmove->zoom_delta();
 
             type = CameraMove{dX, dY, dZoom};
         } break;
         case familyline::InputType_cam_rotate: {
-            auto crot      = (familyline::CameraRotate*) fnTypeData(actioninfo, atype);
+            auto crot      = (familyline::CameraRotate*)fnTypeData(actioninfo, atype);
             double radians = crot->radians();
 
             type = CameraRotate{radians};
         } break;
         case familyline::InputType_create: {
-            auto centity      = (familyline::CreateEntity*) fnTypeData(actioninfo, atype);
+            auto centity      = (familyline::CreateEntity*)fnTypeData(actioninfo, atype);
             std::string etype = centity->type()->str();
             int xPos = centity->x_pos(), yPos = centity->y_pos();
 

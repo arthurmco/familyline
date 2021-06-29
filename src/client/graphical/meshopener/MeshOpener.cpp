@@ -6,7 +6,7 @@ using namespace familyline::graphics;
 
 #include <cstring>
 
-std::unordered_map<std::string /* extension */, MeshOpenerRef /*opener*/> MeshOpener::openers;
+std::unordered_map<std::string /* extension */, MeshOpenerRef /*opener*/> MeshOpener::openers = {};
 
 /* Register the extension into the main class */
 void MeshOpener::RegisterExtension(const char* extension, MeshOpener* opener)
@@ -29,10 +29,15 @@ void MeshOpener::UnregisterExtension(const char* extension)
     if (MeshOpener::openers.empty())
         return;
     
-    MeshOpener::openers[std::string{extension}].ref--;
+    auto ext = std::string{extension};
+    auto opext = MeshOpener::openers.find(ext);
+    if (opext == MeshOpener::openers.end())
+        return;
 
-    if (MeshOpener::openers[std::string{extension}].ref == 0)
-        MeshOpener::openers.erase(std::string{extension});
+    opext->second.ref--;
+
+    if (opext->second.ref == 0)
+        MeshOpener::openers.erase(ext);
 
     log->write(
         "meshopener", LogType::Debug, "unregistered mesh opener for the .%s extension", extension);

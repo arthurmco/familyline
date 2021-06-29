@@ -121,11 +121,7 @@ struct Packet {
 
     std::variant<
         NStartRequest, NStartResponse, NLoadingRequest, NLoadingResponse, NGameStartRequest,
-<<<<<<< HEAD
-        NGameStartResponse, std::monostate>
-=======
         NGameStartResponse, InputRequest, InputResponse, std::monostate>
->>>>>>> 434493e93631cbb29c0c6cb1cdfb0b3138a4dbb6
         message;
 };
 

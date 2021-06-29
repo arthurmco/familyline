@@ -7,7 +7,7 @@
  * (C) 2020 Arthur Mendes
  */
 
-#include <bits/stdint-uintn.h>
+#include <stdint.h>
 #include <queue>
 
 #include <common/logic/input_reproducer.hpp>
